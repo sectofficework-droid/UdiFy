@@ -1,0 +1,106 @@
+# BOOTSTRAP.md — UdiFy Current State
+
+> Read this every session (RULEBOOK.md §0/§C.2 — ALWAYS). Curated snapshot,
+> not an archive — see RULEBOOK.md §D size-discipline rule.
+
+## Current state (as of 2026-09-25, session 1)
+
+- **Mode**: NEW project (RULEBOOK.md §0 activation — no code/git existed
+  when RULEBOOK.md was found at ROOT this session).
+- **Phase**: CODING (UI DESIGN CONFIRMED closed + CODING opened — user
+  said **"code it"** 2026-09-25; per RULEBOOK.md §F's trigger-alias logic,
+  "code it"/"start backend" close the UI gate and open CODING together).
+- **Gate**: CODING open. Implementing mechanically from IMPL-SPEC.md +
+  TODO.md's mock-first build order; no improvisation on business rules.
+- **Approvals given**: git init; secrets approach; stack lock-in (bundled
+  clarify round, 2026-09-25). **PLANNING approved** ("approve plan").
+  **DESIGN FIXED approved** ("approve design"). **UI DESIGN CONFIRMED
+  closed + CODING opened** ("code it").
+- **Approvals pending**: run tests / approve release.
+
+## Real environment versions (verified this session, §A.8/§C.2)
+
+- Python: **3.14.7** (`C:\Python314\python.exe`) — via `python --version`.
+- Git: **2.55.0.windows.3** — via `git --version`.
+- OS: Windows 11 Home Single Language 10.0.26200.
+- No Node.js dependency in this project (Node was only used transiently by
+  the AI session itself to slice RULEBOOK.md text — not a project
+  dependency).
+- Playwright/PySide6/etc. versions: not yet installed — TBD at CODING.
+
+## What exists on disk right now
+
+```
+D:\Project\UdiFy\
+├── AGENTS.md                              (created this session)
+├── .gitignore                             (created this session)
+├── governance\
+│   ├── RULEBOOK.md                        (moved from ROOT this session)
+│   ├── BOOTSTRAP.md                       (this file)
+│   ├── ai-context\SESSION-2026-09-25-1.md
+│   ├── work-log\LOG-2026-09-25.md
+│   ├── planning\
+│   │   ├── UDIFY-SPECIFICATIONS.md        (moved from ROOT this session — MASTER SPEC, source of truth)
+│   │   ├── DISCOVERY.md
+│   │   ├── PLAN.md
+│   │   ├── DB-DESIGN.md
+│   │   ├── IMPL-SPEC.md
+│   │   ├── UI-SPEC.md
+│   │   ├── TODO.md
+│   │   ├── SECURITY-THREAT-MODEL.md
+│   │   └── RELEASE-PLAN.md
+│   └── documentation\SETUP-GUIDE.md
+└── Scratch\UdiFy\coding\{assets\{css,js,img}}, debugging\, suggestions\  (empty stubs, git-ignored)
+```
+
+No production code exists yet — correct for PLANNING phase (RULEBOOK.md
+§A.1/§H.1).
+
+## Git state
+
+- Repo initialized this session (`git init`), on `master`, no commits yet.
+- Remote `origin` added this session:
+  `https://github.com/sectofficework-droid/UdiFy.git` (fetch+push
+  configured; nothing pushed — nothing has been committed yet either).
+- Staged/committed status: **staged, not committed** — user has not asked
+  for a commit (RULEBOOK.md §A9). User must trigger the commit explicitly,
+  and pushing needs its own explicit ask after that.
+- `.gitignore` confirmed to exclude `Scratch/`, `.env*`, `credentials/`,
+  `*.sqlite3`, build artifacts, etc. — verified `Scratch/` does not even
+  appear in `git status --short` output.
+- Secret scan: performed on all `governance/` content before staging (see
+  SESSION-2026-09-25-1.md) — no secrets found (project contains no
+  credentials yet; none were pasted into any doc).
+
+## Assumptions on record (user may veto per RULEBOOK.md §C2.3)
+
+- Aadhaar-consent automation stays manual-only by default until the school
+  explicitly authorizes otherwise (DISCOVERY.md open question 3).
+
+## Open questions (not blocking PLANNING, needed before later gates)
+
+1. Numeric MVP success metrics — needed before RELEASE.
+2. **Resolved 2026-09-25**: Google Cloud project/service account and
+   government-portal credentials — explicit decision made to proceed
+   **mock-first**. Neither is needed to start or continue CODING; see the
+   master spec's "CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION",
+   TODO.md's mock-first build order + Live Verification Gate, and
+   RELEASE-PLAN.md's updated "Test target". Real credentials are supplied
+   later, only for the separate Live Verification Gate phase.
+3. Aadhaar-consent automation: confirm manual-only, or authorize automation?
+4. **Resolved 2026-09-25**: PEN Import's ACTIVE/pending outcome, PEN
+   Request Sent (Student Release Request generation), and View Sent
+   Request (National status monitoring) — user re-checked all three
+   recordings directly and supplied the full workflows (now in
+   UDIFY-SPECIFICATIONS.md). Every stale "not yet documented" statement in
+   the spec was replaced outright, not just annotated — see the spec's
+   own "FINAL DOCUMENTATION CLASSIFICATION" block for the authoritative
+   per-workflow status. **Still open**: the successful/Dropbox outcome for
+   UDISE Import and PEN Import (neither demonstrated by any recording, and
+   the spec explicitly warns not to infer it from the ACTIVE-outcome
+   workflows) — see UI-SPEC.md §B.5 for the current coverage table.
+
+## Next trigger
+
+CODING is in progress. Say **"run tests" / "test it"** once enough of the
+build order is complete to move to TESTING.

@@ -1,0 +1,48 @@
+# Disposable/ephemeral workspace (RULEBOOK.md §B) — never production, never continuity
+Scratch/
+
+# Secrets — never tracked (RULEBOOK.md §J6)
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+credentials/
+**/credentials/
+*.credentials.json
+service-account*.json
+token.json
+token.pickle
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# PyInstaller
+*.spec
+!installer.spec
+
+# SQLite local state (workflow/audit DB — never shipped, never committed)
+*.sqlite3
+*.db
+
+# Playwright
+playwright-report/
+test-results/
+
+# Diagnostics/screenshots captured by the app at runtime
+diagnostics/
+screenshots/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
