@@ -466,10 +466,14 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] Wrong-student search result → identity check blocks it —
       `StudentIdentityMismatchError`, tested
       (`test_generate_release_request_rejects_identity_mismatch`)
-- [ ] UDISE validation failure — `validate_student()` exists and is
-      called by every condition engine, but has no dedicated failure-path
-      unit test in isolation.
-- [ ] PEN validation failure — same as above.
+- [x] UDISE validation failure — **closed 2026-09-25**,
+      `tests/unit/test_validation.py`: missing name/class_name raise
+      `StudentIdentityError` before any branch runs; `run_udise_new_
+      branch()` separately refuses to proceed without a UDISE sheet row,
+      before any Gujarat portal action.
+- [x] PEN validation failure — same file; `run_pen_new_branch()` refuses
+      to proceed without a PEN sheet row, before any National portal
+      action.
 - [ ] Session timeout → pause + resume from checkpoint — the "pause and
       classify" half exists (`RecoverableAutomationError`,
       `tests/unit/test_resilience.py`); "resume from a persisted
@@ -499,8 +503,18 @@ LIVE CREDENTIALS: NOT CONFIGURED
       `MANUAL_REVIEW` is tested (ND reconciliation's ambiguous case); the
       resolve side (`PEN_MANUAL_ACTION_COMPLETED` → `PEN_RESOLVED` after
       a human acts) has no dedicated test yet.
-- [ ] Resume after interruption — not built (depends on the same
-      checkpoint-persistence gap as "Session timeout" above).
+- [~] Resume after interruption — **partially closed 2026-09-25**: a
+      between-branch interruption (crash/kill after the UDISE branch
+      verified GREEN but before the PEN branch ran) now resumes
+      correctly without repeating the completed portal action, as a
+      direct consequence of `entry_router.py`'s sheet-state detection —
+      re-determining the condition against the post-interruption sheet
+      state naturally routes to "Condition 3" (PEN-only), tested end to
+      end (`tests/integration/test_resume_after_interruption.py`).
+      Resuming **mid-branch** (e.g. a crash halfway through the New PEN
+      form's multiple steps) is a different, larger problem this does
+      not solve — that would need the `workflow_runs.checkpoint_json`
+      persistence mechanism, still unbuilt.
 
 ## Acceptance criteria (spec §287 — "fills forms" is not "done")
 
