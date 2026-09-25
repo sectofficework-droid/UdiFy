@@ -11,9 +11,22 @@ import sqlite3
 import uuid
 from datetime import datetime, timezone
 
-from src.db.events import CaseStatus, EventCode, PenCaseEvent, Performer, append_event
+from src.db.events import (
+    CaseStatus,
+    EventCode,
+    PenCaseEvent,
+    Performer,
+    append_event,
+    get_current_status,
+)
 from src.sheets.models import Student
 from src.sheets.repository import GREEN
+
+
+class CaseNotInManualReviewError(Exception):
+    """record_manual_resolution() only makes sense on a case currently
+    at MANUAL_REVIEW — the operator flow is View Details -> Mark Action
+    Completed -> resolve (spec §N)."""
 
 
 def record_completion_event(
@@ -249,6 +262,76 @@ def record_nd_reconciliation_ambiguous_event(
             pen=previous_pen,
             case_cycle_id=new_cycle,
             previous_event_id=reopened_id,
+            metadata={"run_id": run_id},
+        ),
+    )
+
+
+def record_manual_resolution(
+    conn: sqlite3.Connection,
+    student: Student,
+    *,
+    run_id: str,
+    environment: str,
+    workflow: str,
+    action_description: str,
+    resolution_note: str,
+    performed_by: Performer = Performer.MANUAL,
+    uid: str | None = None,
+    pen_value: str | None = None,
+) -> None:
+    """The resolve half of the manual-review flow (spec §N): `View
+    Details` -> `Mark Action Completed` (requires an action description)
+    -> resolve (requires a resolution note). Only valid on a case
+    currently at MANUAL_REVIEW — continues that case's existing cycle
+    (no new case_cycle_id), preserving the reopen/ambiguous-match history
+    that put it there.
+    """
+    current = get_current_status(conn, student.student_id)
+    if current is not CaseStatus.MANUAL_REVIEW:
+        raise CaseNotInManualReviewError(
+            f"{student.student_id!r} is at {current!r}, not MANUAL_REVIEW — "
+            "record_manual_resolution() only applies to an open manual-review case"
+        )
+
+    completed_id = append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=EventCode.PEN_MANUAL_ACTION_COMPLETED,
+            case_status_before=CaseStatus.MANUAL_REVIEW,
+            case_status_after=CaseStatus.MANUAL_REVIEW,
+            spreadsheet_status="MANUAL_REVIEW",
+            spreadsheet_color=GREEN,
+            performed_by=performed_by,
+            environment=environment,
+            uid_udise=uid,
+            pen=pen_value,
+            action_description=action_description,
+            metadata={"run_id": run_id},
+        ),
+    )
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=EventCode.PEN_RESOLVED,
+            case_status_before=CaseStatus.MANUAL_REVIEW,
+            case_status_after=CaseStatus.RESOLVED,
+            spreadsheet_status="COMPLETE",
+            spreadsheet_color=GREEN,
+            performed_by=performed_by,
+            environment=environment,
+            uid_udise=uid,
+            pen=pen_value,
+            resolution_note=resolution_note,
+            previous_event_id=completed_id,
             metadata={"run_id": run_id},
         ),
     )

@@ -508,10 +508,15 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] Manual consent checkpoint (Aadhaar) — structurally can never
       auto-click "I Agree", tested
       (`test_aadhaar_consent_pauses_and_is_never_auto_clicked`)
-- [ ] Manual review path end-to-end (open → action → resolve) — reaching
-      `MANUAL_REVIEW` is tested (ND reconciliation's ambiguous case); the
-      resolve side (`PEN_MANUAL_ACTION_COMPLETED` → `PEN_RESOLVED` after
-      a human acts) has no dedicated test yet.
+- [x] Manual review path end-to-end (open → action → resolve) —
+      **closed 2026-09-25**, new `record_manual_resolution()`
+      (`src/engine/audit.py`): `PEN_MANUAL_ACTION_COMPLETED` (requires an
+      action description) → `PEN_RESOLVED` (requires a resolution note),
+      continuing the case's existing reopen cycle rather than starting a
+      new one; refuses with `CaseNotInManualReviewError` if the case
+      isn't actually at `MANUAL_REVIEW`. Full open→action→resolve chain
+      tested end to end starting from ND reconciliation's real ambiguous-
+      match path (`tests/integration/test_manual_review_resolution.py`).
 - [~] Resume after interruption — **partially closed 2026-09-25**: a
       between-branch interruption (crash/kill after the UDISE branch
       verified GREEN but before the PEN branch ran) now resumes
@@ -579,7 +584,8 @@ LIVE CREDENTIALS: NOT CONFIGURED
       mechanism beyond direct read/write calls; not separately verified.
 - [ ] Retry/resume correctness — no retry/resume mechanism is built yet
       (same gap as "Session timeout"/"Resume after interruption" above).
-- [ ] Manual review flow works end-to-end — see the matching item above.
+- [x] Manual review flow works end-to-end — see the matching item above
+      (closed 2026-09-25).
 - [x] Logging meets RULEBOOK.md §L bar (diagnosable without asking the
       operator to describe internals) — structured JSON logging with
       session correlation, secret redaction, and `diagnostic_id`s
