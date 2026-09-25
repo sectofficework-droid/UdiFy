@@ -200,9 +200,29 @@ and mocked/fixture portal pages as the primary implementation target.
     spreadsheet verification (GREEN vs LIGHT_ORANGE, REMARK text, OGR
     color never changed by gov-entry per spec §4.4/§128.4). 37/37 tests
     project-wide.
-10. ND reconciliation branch (separate, explicit trigger) — mocked
-    scenarios: actual PEN discovered, PEN remains unavailable. Not yet
-    started.
+10. [x] ND reconciliation branch (separate, explicit trigger, spec
+    §165/§259-264) — `NationalUDISEPortalAdapter.search_for_nd_
+    reconciliation()` (class-first, then name search; assumption flagged:
+    reuses the confirmed Global Student Search screen with an invented
+    "Search By Name" mode toggle mirroring the confirmed "Student PEN"
+    mode — no recording separately confirms this screen's exact DOM for
+    a name-based search, needs live-DOM verification). New
+    `src/engine/nd_reconciliation.py`: `run_nd_reconciliation()` —
+    `match_nd_candidate()` never silently picks among multiple name
+    matches (narrows by DOB, else routes to manual review, spec §165.3);
+    `is_actual_pen()` accepts only an 11-digit numeric value, so `NA`
+    always keeps `ND` (spec §262: never invent/derive a PEN). Three
+    outcomes: `PEN_FOUND` (writes PEN sheet + OGR, spec §263, and records
+    a RESOLVED reopen-cycle via `src/engine/audit.py`'s new
+    `record_nd_reconciliation_found_event()`), `STILL_ND` (no write, no
+    event), `AMBIGUOUS_MANUAL_REVIEW` (no write, records a reopen-cycle
+    ending at MANUAL_REVIEW via the new
+    `record_nd_reconciliation_ambiguous_event()`). Both reopen helpers
+    correctly start a NEW `case_cycle_id` on top of an already-RESOLVED
+    case (DB-DESIGN.md §B.2: RESOLVED only transitions to REOPENED) while
+    keeping the hash chain intact. 3 new integration tests
+    (`tests/integration/test_nd_reconciliation.py`), one per outcome.
+    42/42 tests project-wide.
 11. Approval/status-check batch flow across both portals + Status-Changed
     manual review queue.
 12. Verification gates (consequential-action rule, `MOCK_SUCCESS` vs
@@ -262,8 +282,8 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] Sent Request list
 - [x] `Pending at Destination`
 - [x] Student Details modal
-- [ ] ND reconciliation — actual 11-digit PEN discovered
-- [ ] ND reconciliation — PEN remains unavailable
+- [x] ND reconciliation — actual 11-digit PEN discovered
+- [x] ND reconciliation — PEN remains unavailable
 - [ ] Portal status unknown
 - [ ] Session expiry
 - [ ] Timeout
@@ -308,7 +328,7 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] UDISE Import + New PEN (Condition 3)
 - [x] UDISE Import + PEN Import (Condition 4)
 - [x] New PEN resulting in `ND`
-- [ ] `ND` later becoming an actual PEN (reconciliation)
+- [x] `ND` later becoming an actual PEN (reconciliation)
 - [ ] Already-GREEN row is skipped
 - [ ] Duplicate search results → manual review, not auto-pick
 - [ ] Wrong-student search result → identity check blocks it

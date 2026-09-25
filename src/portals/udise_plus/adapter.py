@@ -143,6 +143,20 @@ class SentRequestStudentSnapshot:
 
 
 @dataclass(frozen=True)
+class NdReconciliationCandidate:
+    """spec §165/§260 — one row of an ND-reconciliation name search
+    result. `current_pen` is the raw observed value ("NA" or an actual
+    11-digit PEN) — this adapter never interprets it, the caller does
+    (spec §262: never invent/derive a PEN)."""
+
+    student_name: str
+    dob: str
+    gender: str
+    class_name: str
+    current_pen: str
+
+
+@dataclass(frozen=True)
 class HosDetails:
     """Spec §14 — source school's Head of School info (cross-school PII —
     see SECURITY-THREAT-MODEL.md's dedicated threat row for this)."""
@@ -296,7 +310,7 @@ class NationalUDISEPortalAdapter:
         p.get_by_text("Global Student Search", exact=True).click()
         p.get_by_label("Student PEN", exact=True).check()
         p.get_by_label("PEN", exact=True).fill(pen)
-        p.get_by_role("button", name="Search").click()
+        p.get_by_role("button", name="Search", exact=True).click()
         self._verify_visible(
             p.get_by_label("Student Status", exact=True), "Expected a Global Student Search result"
         )
@@ -448,6 +462,47 @@ class NationalUDISEPortalAdapter:
             father_name=p.get_by_label("Father's Name", exact=True).input_value(),
             class_name=p.get_by_label("Class", exact=True).input_value(),
         )
+
+    # ===== ND Reconciliation (spec §165/§260-263) =====
+    def search_for_nd_reconciliation(
+        self, class_name: str, student_name: str
+    ) -> list[NdReconciliationCandidate]:
+        """spec §165.2/§260: select class first, then search by name.
+
+        Assumption flagged (needs live-DOM verification, same posture as
+        other flagged assumptions in this codebase e.g.
+        field_mapping.py's Birth City stand-in): reuses the confirmed
+        Global Student Search screen with a "Student Name" search mode,
+        mirroring PEN Import's confirmed "Student PEN" mode — no
+        recording separately confirms this screen's exact DOM for a
+        name-based search. Returns every candidate row; the caller must
+        apply the multi-attribute identity check (spec §165.3) — this
+        method never silently picks one.
+        """
+        p = self.page
+        p.get_by_text("Global Student Search", exact=True).click()
+        p.get_by_label("Class", exact=True).select_option(label=class_name)
+        p.get_by_label("Search By Name", exact=True).check()
+        p.get_by_label("Name", exact=True).fill(student_name)
+        p.get_by_role("button", name="Search", exact=True).click()
+        self._verify_visible(
+            p.get_by_text("Search Results", exact=True),
+            "Expected ND reconciliation search results",
+        )
+        rows = p.get_by_role("row")
+        candidates: list[NdReconciliationCandidate] = []
+        for i in range(1, rows.count()):  # row 0 is the header row
+            cells = rows.nth(i).get_by_role("cell")
+            candidates.append(
+                NdReconciliationCandidate(
+                    student_name=(cells.nth(0).text_content() or "").strip(),
+                    dob=(cells.nth(1).text_content() or "").strip(),
+                    gender=(cells.nth(2).text_content() or "").strip(),
+                    class_name=(cells.nth(3).text_content() or "").strip(),
+                    current_pen=(cells.nth(4).text_content() or "").strip(),
+                )
+            )
+        return candidates
 
     # -- shared verification helper ---------------------------------------
     def _verify_visible(self, locator: Locator, expected_description: str) -> None:

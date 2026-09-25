@@ -8,6 +8,7 @@ chain) — so this is centralized rather than re-implemented per engine.
 from __future__ import annotations
 
 import sqlite3
+import uuid
 from datetime import datetime, timezone
 
 from src.db.events import CaseStatus, EventCode, PenCaseEvent, Performer, append_event
@@ -117,6 +118,137 @@ def record_pending_event(
             performed_by=Performer.AUTOMATION,
             environment=environment,
             portal_status=portal_status,
+            metadata={"run_id": run_id},
+        ),
+    )
+
+
+def record_nd_reconciliation_found_event(
+    conn: sqlite3.Connection,
+    student: Student,
+    *,
+    run_id: str,
+    environment: str,
+    previous_pen: str,
+    actual_pen: str,
+) -> None:
+    """spec §165/§260/§263: ND reconciliation is a later, separate
+    operation on an already-RESOLVED case — RESOLVED only transitions to
+    REOPENED (DB-DESIGN.md §B.2), and a reopen deliberately starts a NEW
+    case_cycle_id, preserving the original cycle's history immutably."""
+    new_cycle = str(uuid.uuid4())
+    reopened_id = append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow="ND_RECONCILIATION",
+            event_code=EventCode.PEN_CASE_REOPENED,
+            case_status_before=CaseStatus.RESOLVED,
+            case_status_after=CaseStatus.REOPENED,
+            spreadsheet_status="ND_RECONCILIATION_IN_PROGRESS",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            pen=previous_pen,
+            case_cycle_id=new_cycle,
+            reopen_reason="ND reconciliation found an actual PEN; reopening to record the update",
+            metadata={"run_id": run_id},
+        ),
+    )
+    verifying_id = append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow="ND_RECONCILIATION",
+            event_code=EventCode.PEN_REOPEN_VERIFICATION,
+            case_status_before=CaseStatus.REOPENED,
+            case_status_after=CaseStatus.VERIFYING,
+            spreadsheet_status="VERIFIED",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            pen=actual_pen,
+            case_cycle_id=new_cycle,
+            previous_event_id=reopened_id,
+            metadata={"run_id": run_id},
+        ),
+    )
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow="ND_RECONCILIATION",
+            event_code=EventCode.PEN_RESOLVED,
+            case_status_before=CaseStatus.VERIFYING,
+            case_status_after=CaseStatus.RESOLVED,
+            spreadsheet_status="COMPLETE",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            pen=actual_pen,
+            case_cycle_id=new_cycle,
+            previous_event_id=verifying_id,
+            resolution_note=f"ND reconciliation: PEN updated from {previous_pen!r} to {actual_pen!r}.",
+            metadata={"run_id": run_id},
+        ),
+    )
+
+
+def record_nd_reconciliation_ambiguous_event(
+    conn: sqlite3.Connection,
+    student: Student,
+    *,
+    run_id: str,
+    environment: str,
+    previous_pen: str,
+) -> None:
+    """spec §165.3: never silently pick a candidate — route to manual
+    review instead. Opens a new cycle (see record_nd_reconciliation_found_
+    event's docstring) ending at MANUAL_REVIEW, not RESOLVED."""
+    new_cycle = str(uuid.uuid4())
+    reopened_id = append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow="ND_RECONCILIATION",
+            event_code=EventCode.PEN_CASE_REOPENED,
+            case_status_before=CaseStatus.RESOLVED,
+            case_status_after=CaseStatus.REOPENED,
+            spreadsheet_status="ND_RECONCILIATION_IN_PROGRESS",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            pen=previous_pen,
+            case_cycle_id=new_cycle,
+            reopen_reason="ND reconciliation search returned ambiguous candidates",
+            metadata={"run_id": run_id},
+        ),
+    )
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow="ND_RECONCILIATION",
+            event_code=EventCode.PEN_STUDENT_MATCH_AMBIGUOUS,
+            case_status_before=CaseStatus.REOPENED,
+            case_status_after=CaseStatus.MANUAL_REVIEW,
+            spreadsheet_status="MANUAL_REVIEW",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            pen=previous_pen,
+            case_cycle_id=new_cycle,
+            previous_event_id=reopened_id,
             metadata={"run_id": run_id},
         ),
     )

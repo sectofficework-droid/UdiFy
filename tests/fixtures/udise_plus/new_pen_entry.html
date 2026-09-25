@@ -8,6 +8,7 @@
 
 <div id="global-nav" hidden>
   <button type="button" id="nav-release-management-btn">Student Release Request Management</button>
+  <button type="button" id="nav-global-search-btn">Global Student Search</button>
 </div>
 <main id="app"></main>
 
@@ -245,22 +246,40 @@
 
     <label for="track-school-name">School Name</label>
     <input id="track-school-name" type="text" value="Other School, Ganjam" readonly>
-
-    <button type="button" id="global-search-nav-btn">Global Student Search</button>
   </section>
 </template>
 
 <template id="tpl-global-search">
   <section>
-    <span>Global Student Search</span>
+    <label for="gs-class">Class</label>
+    <select id="gs-class">
+      <option value="">--</option>
+      <option value="lkg">LKG/KG1/PP2</option>
+    </select>
 
     <label for="gs-mode-pen">Student PEN</label>
     <input type="checkbox" id="gs-mode-pen">
 
+    <label for="gs-mode-name">Search By Name</label>
+    <input type="checkbox" id="gs-mode-name">
+
     <label for="gs-pen">PEN</label>
     <input id="gs-pen" type="text">
 
+    <label for="gs-name">Name</label>
+    <input id="gs-name" type="text">
+
     <button type="button" id="gs-search-btn">Search</button>
+
+    <div id="gs-nd-results" hidden>
+      <h3>Search Results</h3>
+      <table>
+        <thead>
+          <tr><th>Student Name</th><th>DOB</th><th>Gender</th><th>Class</th><th>PEN</th></tr>
+        </thead>
+        <tbody id="gs-nd-results-body"></tbody>
+      </table>
+    </div>
 
     <div id="gs-result" hidden>
       <label for="gs-student-name">Student Name</label>
@@ -357,11 +376,38 @@
       case 'view-details-btn':
         show('track-by-details');
         break;
-      case 'global-search-nav-btn':
+      case 'nav-global-search-btn':
         show('global-search');
         break;
       case 'gs-search-btn':
-        document.getElementById('gs-result').hidden = false;
+        if (document.getElementById('gs-mode-name').checked) {
+          var name = document.getElementById('gs-name').value;
+          var tbody = document.getElementById('gs-nd-results-body');
+          tbody.innerHTML = '';
+          var rows = [];
+          if (name === 'Test ND Student One') {
+            rows = [['Test ND Student One', '02/01/2022', 'Female', 'LKG/KG1/PP2', '23613114903']];
+          } else if (name === 'Test ND Student Two') {
+            rows = [['Test ND Student Two', '03/02/2022', 'Male', 'LKG/KG1/PP2', 'NA']];
+          } else if (name === 'Test ND Ambiguous') {
+            rows = [
+              ['Test ND Ambiguous', '01/01/2022', 'Female', 'LKG/KG1/PP2', 'NA'],
+              ['Test ND Ambiguous', '05/05/2022', 'Male', 'LKG/KG1/PP2', 'NA']
+            ];
+          }
+          rows.forEach(function (r) {
+            var tr = document.createElement('tr');
+            r.forEach(function (val) {
+              var td = document.createElement('td');
+              td.textContent = val;
+              tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+          });
+          document.getElementById('gs-nd-results').hidden = false;
+        } else {
+          document.getElementById('gs-result').hidden = false;
+        }
         break;
       case 'hos-details-btn':
         // Removed (not just hidden) so it can never collide with the
