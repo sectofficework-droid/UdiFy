@@ -410,7 +410,13 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] Aadhaar already registered
 - [x] `View Details`
 - [x] `Track By Details`
-- [ ] Existing PEN discovery
+- [x] Existing PEN discovery — this is `Track By Details`'s own purpose
+      (discovering the PEN an existing-elsewhere student already has,
+      spec step 8): `TrackByDetailsResult.student_pen`, asserted directly
+      in `test_pen_import_other_school_active_flow_against_fixture`. Not
+      a separate mechanism from the line above — re-audited and checked
+      off under its own name for a literal reading of the master spec's
+      minimum-coverage list.
 - [x] Global Student Search
 - [x] Student Status = `ACTIVE`
 - [x] HOS Details
