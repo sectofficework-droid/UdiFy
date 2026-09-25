@@ -17,6 +17,7 @@ from src.db.events import EventCode
 from src.diagnostics.logging_setup import get_logger
 from src.engine.audit import record_pending_event
 from src.engine.branches import run_pen_import_branch, run_udise_new_branch
+from src.engine.resilience import run_with_recovery
 from src.engine.routing import determine_id_track
 from src.engine.validation import log_state, validate_student
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
@@ -53,6 +54,17 @@ class Condition2Engine:
 
     def run(self, student: Student) -> Condition2Result:
         run_id = str(uuid.uuid4())
+
+        def _impl() -> Condition2Result:
+            return self._run_impl(student, run_id)
+
+        return run_with_recovery(
+            _impl, conn=self.conn, environment=self.environment,
+            workflow="CONDITION_2_NEW_UDISE_PEN_IMPORT", run_id=run_id,
+            student_id=student.student_id,
+        )
+
+    def _run_impl(self, student: Student, run_id: str) -> Condition2Result:
         log_state(_logger, run_id, student.student_id, "READ_SHEETS")
         validate_student(_logger, student)
         log_state(_logger, run_id, student.student_id, "VALIDATE_STUDENT")

@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.engine.audit import record_completion_event
 from src.engine.branches import BranchError, run_pen_new_branch
+from src.engine.resilience import run_with_recovery
 from src.engine.routing import determine_id_track
 from src.engine.validation import log_state, validate_student
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
@@ -74,6 +75,17 @@ class Condition3Engine:
 
     def run(self, student: Student, *, section: str = "A") -> Condition3Result:
         run_id = str(uuid.uuid4())
+
+        def _impl() -> Condition3Result:
+            return self._run_impl(student, run_id, section=section)
+
+        return run_with_recovery(
+            _impl, conn=self.conn, environment=self.environment,
+            workflow="CONDITION_3_UDISE_IMPORTED_NEW_PEN", run_id=run_id,
+            student_id=student.student_id,
+        )
+
+    def _run_impl(self, student: Student, run_id: str, *, section: str) -> Condition3Result:
         log_state(_logger, run_id, student.student_id, "READ_SHEETS")
         validate_student(_logger, student)
         log_state(_logger, run_id, student.student_id, "VALIDATE_STUDENT")

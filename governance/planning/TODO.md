@@ -244,12 +244,39 @@ and mocked/fixture portal pages as the primary implementation target.
     review queue. 1 new integration test exercising both portals in one
     batch call (`tests/integration/test_approval_batch.py`). 43/43 tests
     project-wide.
-12. Verification gates (consequential-action rule, `MOCK_SUCCESS` vs
+12. [x] Verification gates (consequential-action rule, `MOCK_SUCCESS` vs
     `LIVE_VERIFIED_SUCCESS` distinction) wired through every branch above,
-    not bolted on after.
-13. `AUTOMATION_PAUSED_FOR_USER` handling for CAPTCHA/OTP/Aadhaar consent
-    — mocked scenarios: session expiry, timeout, unknown page/state,
-    browser crash, network failure (both portals).
+    not bolted on after — already structurally satisfied by the existing
+    design rather than needing new code: every `pen_case_events`/
+    `request_cases`/`approval_checks`/`diagnostics` row requires a NOT
+    NULL `environment` (`MOCK`/`LIVE`) column (DB-DESIGN.md §B.4), every
+    condition engine threads `self.environment` through to every event it
+    records, and `GoogleSheetsRepository`'s methods all raise
+    `NotImplementedError` rather than perform a real write — so a MOCK
+    run is structurally incapable of producing a `LIVE_VERIFIED_SUCCESS`
+    case status or a real spreadsheet write; there is no separate
+    "success" enum value to wire, the environment field IS the
+    distinction (spec §5).
+13. [x] `AUTOMATION_PAUSED_FOR_USER` handling for CAPTCHA/OTP/Aadhaar
+    consent (already done — see steps 6-7) + a generic recovery layer for
+    session expiry, timeout, unknown page/state, browser crash, and
+    network failure (both portals) — new `src/engine/resilience.py`:
+    `run_with_recovery()` wraps each condition engine's `run()`.
+    Deliberately does NOT invent portal-specific detection text for any
+    of these five scenarios (none was demonstrated by any recording —
+    RULEBOOK's backlog rule, spec §AH); instead classifies by the KIND of
+    failure Playwright itself reports: a bare `PlaywrightTimeoutError`
+    (the real, generic signature shared by session expiry/timeout/an
+    unrecognized page) becomes `RecoverableAutomationError`, any other
+    Playwright-level error (browser crash, network) becomes
+    `BrowserOrNetworkFailureError` — both always preceded by a captured
+    diagnostic (RULEBOOK §L2/§L3), never silently retried by this layer
+    itself (spec §13: resume from checkpoint, never blindly repeat the
+    portal action). `AutomationPausedForUser` and any already-structured
+    `PortalError` pass through unchanged. All four `Condition*Engine.run()`
+    methods now route through this wrapper (renamed their bodies to
+    `_run_impl()`). 5 new unit tests
+    (`tests/unit/test_resilience.py`). 48/48 tests project-wide.
 14. PySide6 GUI screens (UI-SPEC.md §B.1), wired to the engine.
 15. UI-change resilience test pass (spec §10464-10483) before any batch
     scaling — selector fallback tests against deliberately altered mocked

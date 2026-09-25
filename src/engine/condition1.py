@@ -23,6 +23,7 @@ from src.engine.branches import (
     run_pen_new_branch,
     run_udise_new_branch,
 )
+from src.engine.resilience import run_with_recovery
 from src.engine.routing import determine_id_track
 from src.engine.validation import validate_student, log_state
 from src.diagnostics.logging_setup import get_logger
@@ -64,6 +65,17 @@ class Condition1Engine:
 
     def run(self, student: Student, *, section: str = "A") -> Condition1Result:
         run_id = str(uuid.uuid4())
+
+        def _impl() -> Condition1Result:
+            return self._run_impl(student, run_id, section=section)
+
+        return run_with_recovery(
+            _impl, conn=self.conn, environment=self.environment,
+            workflow="CONDITION_1_NEW_UDISE_NEW_PEN", run_id=run_id,
+            student_id=student.student_id,
+        )
+
+    def _run_impl(self, student: Student, run_id: str, *, section: str) -> Condition1Result:
         log_state(_logger, run_id, student.student_id, "READ_SHEETS")
 
         validate_student(_logger, student)
