@@ -455,10 +455,11 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] UDISE Import + PEN Import (Condition 4)
 - [x] New PEN resulting in `ND`
 - [x] `ND` later becoming an actual PEN (reconciliation)
-- [ ] Already-GREEN row is skipped — not built: no condition engine
-      currently checks "is this row already GREEN?" before running;
-      batch-level skip-logic for already-complete rows is not
-      implemented (spec §264).
+- [x] Already-GREEN row is skipped — **closed 2026-09-25** by
+      `src/engine/entry_router.py`'s `run_entry()` (see "Correct entry-
+      condition routing" in the acceptance criteria below for detail);
+      tested (`test_already_complete_both_sides_green_is_skipped_not_a_condition`,
+      `test_run_entry_skips_an_already_complete_student`).
 - [x] Duplicate search results → manual review, not auto-pick —
       `match_nd_candidate()` / `AMBIGUOUS_MANUAL_REVIEW`, tested
       (`test_ambiguous_match_routes_to_manual_review_without_writing_sheet`)
@@ -510,13 +511,25 @@ LIVE CREDENTIALS: NOT CONFIGURED
       (`tests/unit/test_routing.py`, added while auditing this checklist
       — the existing integration tests only ever exercised the BLOCK_ID
       branch, since every demo/test student uses "LKG/KG1/PP2")
-- [ ] Correct entry-condition routing (1-4) — each condition is correct
-      *once selected*, but there is no automated function that inspects
-      a student's sheet state and picks Condition 1/2/3/4 for the
-      caller; the GUI's demo dataset hardcodes which condition applies
-      to each sample student, and the engine layer expects the caller to
-      already know which `Condition*Engine` to instantiate. This is a
-      real, currently-unclosed gap — not merely an unchecked box.
+- [x] Correct entry-condition routing (1-4) — **closed 2026-09-25**, new
+      `src/engine/entry_router.py`: `determine_udise_state()`/
+      `determine_pen_state()` read a student's actual sheet state (row
+      color, known UID, Aadhaar-import signal per spec §6) into
+      `NEW`/`IMPORT_PENDING`/`ALREADY_COMPLETE`, matched against spec
+      §79's decision tree; `run_entry()` dispatches to the matching
+      `Condition*Engine` automatically. Also closes "Already-GREEN row is
+      skipped" (spec §264, immediately below) in the same place, since
+      both requirements read the same sheet state — both-sides-GREEN
+      returns `None` without touching either portal. Any combination the
+      decision tree doesn't define (e.g. one side already GREEN, the
+      other IMPORT-pending) is never guessed into the nearest condition —
+      raises `AmbiguousEntryConditionError` for manual review instead. 8
+      unit tests (`tests/unit/test_entry_router.py`) + 3 integration
+      tests exercising real fixture-driven dispatch, the skip, and the
+      ambiguous-raise (`tests/integration/test_entry_router.py`).
+      `src/app/run_worker.py` (the GUI's Run & Progress screen) now calls
+      `run_entry()` instead of the caller picking a condition — verified
+      by actually running it through the live GUI.
 - [x] Correct field mapping (no silent misalignment) —
       `field_mapping.py`, exercised end-to-end in every condition test
       (exact values asserted, not just "no exception")

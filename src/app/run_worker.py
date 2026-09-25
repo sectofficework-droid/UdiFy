@@ -18,14 +18,12 @@ from playwright.sync_api import sync_playwright
 from src.app.app_context import AppContext, DemoStudentEntry
 from src.app.mock_fixtures import GUJARAT_FIXTURE, NATIONAL_FIXTURE
 from src.db.connection import connect
-from src.engine.condition1 import Condition1Engine
-from src.engine.condition2 import Condition2Engine
-from src.engine.condition3 import Condition3Engine
-from src.engine.condition4 import Condition4Engine
+from src.engine.entry_router import AmbiguousEntryConditionError, run_entry
 from src.engine.resilience import BrowserOrNetworkFailureError, RecoverableAutomationError
 from src.portals.base import AutomationPausedForUser, PortalError
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
+
 
 class RunWorker(QThread):
     progress = Signal(str)
@@ -56,29 +54,17 @@ class RunWorker(QThread):
                     national.login("sunil.pradhan", "mock-password")
 
                     student = self.entry.student
-                    condition = self.entry.intended_condition
-                    self.progress.emit(f"Running Condition {condition} for {student.name}…")
-
-                    if condition == 1:
-                        result = Condition1Engine(
-                            self.ctx.sheets, gujarat, national, conn, "MOCK"
-                        ).run(student)
-                    elif condition == 2:
-                        result = Condition2Engine(
-                            self.ctx.sheets, gujarat, national, conn, "MOCK"
-                        ).run(student)
-                    elif condition == 3:
-                        result = Condition3Engine(
-                            self.ctx.sheets, national, conn, "MOCK"
-                        ).run(student)
-                    elif condition == 4:
-                        result = Condition4Engine(
-                            self.ctx.sheets, gujarat, national, conn, "MOCK"
-                        ).run(student)
-                    else:
-                        raise ValueError(
-                            f"No condition engine applies to {student.student_id!r} "
-                            "— use ND Reconciliation instead"
+                    self.progress.emit(
+                        f"Determining entry condition for {student.name} from sheet "
+                        "state (spec §78 DETERMINE_ENTRY_CONDITION)…"
+                    )
+                    result = run_entry(
+                        self.ctx.sheets, gujarat, national, conn, student, environment="MOCK",
+                    )
+                    if result is None:
+                        self.progress.emit(
+                            f"{student.name} is already complete on both sides "
+                            "(spec §264) — nothing to run."
                         )
 
                     self.finished_ok.emit(result)
@@ -86,6 +72,8 @@ class RunWorker(QThread):
                     browser.close()
         except AutomationPausedForUser as exc:
             self.paused.emit(str(exc), exc.checkpoint)
+        except AmbiguousEntryConditionError as exc:
+            self.failed.emit(f"Ambiguous entry condition — manual review needed: {exc}")
         except (RecoverableAutomationError, BrowserOrNetworkFailureError) as exc:
             self.failed.emit(f"{type(exc).__name__} — {exc}")
         except PortalError as exc:
