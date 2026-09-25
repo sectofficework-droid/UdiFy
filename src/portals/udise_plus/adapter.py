@@ -184,8 +184,8 @@ class NationalUDISEPortalAdapter:
         registered elsewhere (existing-student path) — this is a
         business-routing signal, never a technical error (spec §25/§6)."""
         p = self.page
-        p.get_by_label("Check AADHAAR Number Availability").check()
-        p.get_by_label("Aadhaar Number").fill(aadhaar)
+        p.get_by_label("Check AADHAAR Number Availability", exact=True).check()
+        p.get_by_label("Aadhaar Number", exact=True).fill(aadhaar)
         p.get_by_role("button", name="Go").click()
         try:
             expect(
@@ -209,10 +209,10 @@ class NationalUDISEPortalAdapter:
             "Expected the Track By Details screen",
         )
         return TrackByDetailsResult(
-            student_pen=p.get_by_label("Student PEN").input_value(),
-            student_name=p.get_by_label("Student Name").input_value(),
-            source_school_udise=p.get_by_label("UDISE Code").input_value(),
-            source_school_name=p.get_by_label("School Name").input_value(),
+            student_pen=p.get_by_label("Student PEN", exact=True).input_value(),
+            student_name=p.get_by_label("Student Name", exact=True).input_value(),
+            source_school_udise=p.get_by_label("UDISE Code", exact=True).input_value(),
+            source_school_name=p.get_by_label("School Name", exact=True).input_value(),
         )
 
     def global_student_search_by_pen(self, pen: str) -> GlobalSearchResult:
@@ -221,18 +221,18 @@ class NationalUDISEPortalAdapter:
         must check it explicitly, this adapter never interprets it."""
         p = self.page
         p.get_by_text("Global Student Search", exact=True).click()
-        p.get_by_label("Student PEN").check()
-        p.get_by_label("PEN").fill(pen)
+        p.get_by_label("Student PEN", exact=True).check()
+        p.get_by_label("PEN", exact=True).fill(pen)
         p.get_by_role("button", name="Search").click()
         self._verify_visible(
-            p.get_by_label("Student Status"), "Expected a Global Student Search result"
+            p.get_by_label("Student Status", exact=True), "Expected a Global Student Search result"
         )
         return GlobalSearchResult(
-            student_name=p.get_by_label("Student Name").input_value(),
+            student_name=p.get_by_label("Student Name", exact=True).input_value(),
             pen=pen,
-            student_status=p.get_by_label("Student Status").input_value(),
-            source_school_name=p.get_by_label("School Details").input_value(),
-            source_school_udise=p.get_by_label("School UDISE").input_value(),
+            student_status=p.get_by_label("Student Status", exact=True).input_value(),
+            source_school_name=p.get_by_label("School Details", exact=True).input_value(),
+            source_school_udise=p.get_by_label("School UDISE", exact=True).input_value(),
         )
 
     def open_hos_details(self) -> HosDetails:
@@ -245,11 +245,11 @@ class NationalUDISEPortalAdapter:
             p.get_by_text("HOS Details", exact=True), "Expected the HOS Details modal"
         )
         return HosDetails(
-            state=p.get_by_label("State").input_value(),
-            district=p.get_by_label("District").input_value(),
-            block=p.get_by_label("Block").input_value(),
-            hos_name=p.get_by_label("Headmaster/Principal").input_value(),
-            hos_contact=p.get_by_label("Contact No.").input_value(),
+            state=p.get_by_label("State", exact=True).input_value(),
+            district=p.get_by_label("District", exact=True).input_value(),
+            block=p.get_by_label("Block", exact=True).input_value(),
+            hos_name=p.get_by_label("Headmaster/Principal", exact=True).input_value(),
+            hos_contact=p.get_by_label("Contact No.", exact=True).input_value(),
         )
 
     # -- shared verification helper ---------------------------------------

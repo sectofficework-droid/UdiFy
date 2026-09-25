@@ -57,6 +57,50 @@ def test_full_new_pen_entry_flow_without_consent_required():
             browser.close()
 
 
+def test_pen_import_other_school_active_flow_against_fixture():
+    """PEN Import — Other School ACTIVE (DB-DESIGN.md §C.3a): Aadhaar
+    availability check -> Track By Details -> Global Student Search ->
+    Student Status == ACTIVE -> HOS Details. Mock scenario checklist:
+    Aadhaar already registered, View Details, Track By Details, Global
+    Student Search, Student Status = ACTIVE, HOS Details."""
+    with sync_playwright() as pw:
+        browser, page = _make_page(pw)
+        try:
+            adapter = NationalUDISEPortalAdapter(page, timeout_ms=3000)
+            adapter.login("sunil.pradhan", "not-a-real-password")
+
+            existing = adapter.check_aadhaar_availability("999988887777")
+            assert existing is True
+
+            track = adapter.open_track_by_details()
+            assert track.student_pen == "12345678901"
+            assert track.source_school_udise == "24224100099"
+
+            search = adapter.global_student_search_by_pen(track.student_pen)
+            assert search.student_status == "ACTIVE"
+
+            hos = adapter.open_hos_details()
+            assert hos.hos_name == "Test HOS Name"
+            assert hos.district == "Ganjam"
+        finally:
+            browser.close()
+
+
+def test_aadhaar_availability_check_returns_false_when_not_registered():
+    """Mock scenario: an Aadhaar with no existing registration must not be
+    treated as a PEN Import case (spec §6: duplicate-Aadhaar is the
+    routing signal)."""
+    with sync_playwright() as pw:
+        browser, page = _make_page(pw)
+        try:
+            adapter = NationalUDISEPortalAdapter(page, timeout_ms=300)
+            adapter.login("sunil.pradhan", "not-a-real-password")
+            existing = adapter.check_aadhaar_availability("111122223333")
+            assert existing is False
+        finally:
+            browser.close()
+
+
 def test_aadhaar_consent_pauses_and_is_never_auto_clicked():
     """spec §39/§142/§I: the adapter must NEVER click "I Agree" itself.
 

@@ -1,0 +1,122 @@
+"""Shared pen_case_events audit-trail recording for every condition engine.
+
+Every condition ends its successful run with the same 3-event pattern —
+OPENED -> VERIFYING -> RESOLVED (DB-DESIGN.md §B.2's allowed-transition
+chain) — so this is centralized rather than re-implemented per engine.
+"""
+
+from __future__ import annotations
+
+import sqlite3
+from datetime import datetime, timezone
+
+from src.db.events import CaseStatus, EventCode, PenCaseEvent, Performer, append_event
+from src.sheets.models import Student
+from src.sheets.repository import GREEN
+
+
+def record_completion_event(
+    conn: sqlite3.Connection,
+    student: Student,
+    *,
+    run_id: str,
+    environment: str,
+    workflow: str,
+    resolution_note: str,
+    uid: str | None = None,
+    pen_value: str | None = None,
+) -> None:
+    now = datetime.now(timezone.utc).isoformat()
+    opened = append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=EventCode.PEN_ACTION_REQUIRED_OPENED,
+            case_status_before=CaseStatus.ACTION_REQUIRED,
+            case_status_after=CaseStatus.ACTION_REQUIRED,
+            spreadsheet_status="IN_PROGRESS",
+            spreadsheet_color="UNCHANGED",
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            uid_udise=uid,
+            pen=pen_value,
+            occurred_at=now,
+            metadata={"run_id": run_id},
+        ),
+    )
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=EventCode.PEN_VERIFICATION_RESULT,
+            case_status_before=CaseStatus.ACTION_REQUIRED,
+            case_status_after=CaseStatus.VERIFYING,
+            spreadsheet_status="VERIFIED",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            uid_udise=uid,
+            pen=pen_value,
+            previous_event_id=opened,
+            metadata={"run_id": run_id},
+        ),
+    )
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=EventCode.PEN_RESOLVED,
+            case_status_before=CaseStatus.VERIFYING,
+            case_status_after=CaseStatus.RESOLVED,
+            spreadsheet_status="COMPLETE",
+            spreadsheet_color=GREEN,
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            uid_udise=uid,
+            pen=pen_value,
+            resolution_note=resolution_note,
+            metadata={"run_id": run_id},
+        ),
+    )
+
+
+def record_pending_event(
+    conn: sqlite3.Connection,
+    student: Student,
+    *,
+    run_id: str,
+    environment: str,
+    workflow: str,
+    event_code: EventCode,
+    portal_status: str | None = None,
+) -> None:
+    """For branches that end in a pending state (REQUEST SENT / IMPORT
+    PENDING), not a resolved completion — spec: these are never marked
+    RESOLVED merely because a request was submitted (Final Authority §J)."""
+    append_event(
+        conn,
+        PenCaseEvent(
+            case_id=student.student_id,
+            student_id=student.student_id,
+            student_name=student.name,
+            workflow=workflow,
+            event_code=event_code,
+            case_status_before=CaseStatus.ACTION_REQUIRED,
+            case_status_after=CaseStatus.ACTION_REQUIRED,
+            spreadsheet_status="PENDING",
+            spreadsheet_color="LIGHT_ORANGE",
+            performed_by=Performer.AUTOMATION,
+            environment=environment,
+            portal_status=portal_status,
+            metadata={"run_id": run_id},
+        ),
+    )

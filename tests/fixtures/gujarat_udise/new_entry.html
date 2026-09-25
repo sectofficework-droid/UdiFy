@@ -20,6 +20,7 @@
   <span>Home</span>
   <button type="button" id="nav-manage-students">Manage Students</button>
   <button type="button" id="nav-student-new-entry" hidden>Student New Entry</button>
+  <button type="button" id="nav-standard-wise-entry" hidden>Standard Wise Entry</button>
 </section>
 
 <!-- ===================== NEW ENTRY: MANUAL BIRTH ===================== -->
@@ -125,6 +126,37 @@
   </div>
 </section>
 
+<!-- ===================== STANDARD WISE ENTRY / IMPORT SEARCH ===================== -->
+<section id="screen-standard-wise-entry" hidden>
+  <label for="swe-class">Class</label>
+  <select id="swe-class">
+    <option value="">--</option>
+    <option value="LKG/KG1/PP2">LKG/KG1/PP2</option>
+  </select>
+
+  <label for="swe-search">Search</label>
+  <input id="swe-search" type="text">
+
+  <button type="button" id="swe-search-btn">Search</button>
+
+  <div id="swe-result" hidden>
+    <span>Transfer</span>
+    <button type="button" id="swe-confirm-btn">Confirm</button>
+  </div>
+  <div id="swe-no-result" hidden>No matching student found.</div>
+</section>
+
+<!-- ===================== TRANSFER STUDENT ===================== -->
+<section id="screen-transfer-student" hidden>
+  <h2>Transfer Student</h2>
+  <label for="transfer-from">Transfer From</label>
+  <input id="transfer-from" type="text" value="Other School" readonly>
+  <label for="transfer-to">Transfer To</label>
+  <input id="transfer-to" type="text" value="Satyam School" readonly>
+  <button type="button" id="update-transfer-btn">Update Transfer Request</button>
+  <div id="transfer-success" hidden>Student Transfer request saved successfully.</div>
+</section>
+
 <script>
   function show(id) {
     document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
@@ -137,10 +169,30 @@
 
   document.getElementById('nav-manage-students').addEventListener('click', function () {
     document.getElementById('nav-student-new-entry').hidden = false;
+    document.getElementById('nav-standard-wise-entry').hidden = false;
   });
 
   document.getElementById('nav-student-new-entry').addEventListener('click', function () {
     show('screen-new-entry');
+  });
+
+  document.getElementById('nav-standard-wise-entry').addEventListener('click', function () {
+    show('screen-standard-wise-entry');
+  });
+
+  document.getElementById('swe-search-btn').addEventListener('click', function () {
+    var uid = document.getElementById('swe-search').value;
+    var found = uid === 'OTHER-SCHOOL-UID-001';
+    document.getElementById('swe-result').hidden = !found;
+    document.getElementById('swe-no-result').hidden = found;
+  });
+
+  document.getElementById('swe-confirm-btn').addEventListener('click', function () {
+    show('screen-transfer-student');
+  });
+
+  document.getElementById('update-transfer-btn').addEventListener('click', function () {
+    document.getElementById('transfer-success').hidden = false;
   });
 
   document.getElementById('birth-next-btn').addEventListener('click', function () {

@@ -114,34 +114,70 @@ and mocked/fixture portal pages as the primary implementation target.
    `expect().to_be_visible()` lessons from step 6 from the start).
    PEN Import successful/Dropbox outcome and the remaining 32-scenario
    list (session expiry, timeout, etc.) are not yet covered.
-8. UDISE Import / transfer-request branch (Condition 2/4's UDISE half) —
-   mocked scenarios: other-school student found, transfer confirmation,
-   `REQUEST SENT`, pending request, duplicate-request protection.
-9. [~] PEN Import/Other-State branch (Condition 2/3's PEN half,
-   DB-DESIGN.md §C.3a) — adapter methods done (see step 7 above); not yet
-   wired into a workflow-engine-level state machine or SQLite event
-   trail (that's `src/engine/`, not yet built) — mocked scenarios still
-   open: `IMPORT PENDING` sheet write verification, ambiguous-match/no-
-   result/details-unavailable failure paths.
+8. [x] UDISE Import / transfer-request branch (Condition 2/4's UDISE half)
+   — `run_udise_import_branch()` in `src/engine/branches.py`, fixture
+   extended (`tests/fixtures/gujarat_udise/new_entry.html`: Standard Wise
+   Entry search, Transfer Student page, Transfer From/To, success
+   message) + 2 new integration tests
+   (`tests/integration/test_gujarat_adapter.py`): other-school student
+   found + transfer confirmation + `REQUEST SENT`, and no-match returns
+   False rather than guessing (spec §300). Duplicate-request-protection
+   and session/timeout scenarios remain open (see mock scenario
+   checklist below).
+9. [x] PEN Import/Other-State branch (Condition 2/3's PEN half,
+   DB-DESIGN.md §C.3a) — now wired into `src/engine/branches.py`'s
+   `run_pen_import_branch()` + `src/engine/audit.py`'s
+   `record_pending_event()` (ACTION_REQUIRED, never RESOLVED — Final
+   Authority §J). Fixture extended (`tests/fixtures/udise_plus/
+   new_pen_entry.html`: Aadhaar availability check, Track By Details,
+   Global Student Search, HOS Details) + 2 new integration tests. Found
+   and fixed a real adapter bug this session: `get_by_label()`/
+   `get_by_text()` do substring matching by default and do NOT exclude
+   merely-`hidden` elements (unlike `get_by_role`, which is
+   accessibility-tree-based) — "Aadhaar Number" ambiguously matched
+   "Check AADHAAR Number Availability", and "PEN" matched "Student PEN";
+   fixed by adding `exact=True` throughout
+   `NationalUDISEPortalAdapter`'s PEN Import methods. Also rebuilt the
+   National fixture around `<template>` + single-container swap (one
+   screen's markup in the DOM at a time) instead of hidden-section
+   toggling, since several confirmed field labels ("Student Name",
+   "Student PEN") legitimately repeat across different real portal
+   screens. `IMPORT PENDING` sheet-write verification covered;
+   ambiguous-match/no-result/details-unavailable failure paths remain.
 9a. PEN Request Sent (Student Release Request generation, DB-DESIGN.md
     §C.3b) + View Sent Request (§C.3c) — mocked scenarios: release
     confirmation dialog, Request No capture, `Pending at Destination`,
-    Student Details modal.
-5-7. [x] **Condition 1 complete end-to-end** — `src/engine/condition1.py`
-    (`Condition1Engine`), `src/engine/field_mapping.py` (sheet-row ->
-    portal-field mapping; one assumption flagged: UDISE sheet's single
-    "Birth City" column stands in for the portal's separate Taluka/
-    Village fields, pending live-DOM verification), `src/engine/
-    routing.py` (class -> ID-track). Added `GujaratUDISEPortalAdapter.
-    read_generated_uid()` (spec §21). Full pipeline test
-    (`tests/integration/test_condition1_engine.py`) matches the decision
-    document's acceptance diagram: Mock Sheet -> Engine -> real
-    fixture-driven Gujarat + National adapters -> SQLite audit trail (3
-    chained, hash-verified `pen_case_events`) -> spreadsheet verification
-    (UDISE GREEN+UID, PEN GREEN+ND, OGR UID updated but color unchanged
-    per spec §4.4/§128.4). Passed first run. 29/29 tests project-wide.
+    Student Details modal. Not yet started.
+5-9. [x] **Conditions 1-4 complete end-to-end** —
+    `src/engine/condition1.py` .. `condition4.py`, refactored onto shared
+    `src/engine/branches.py` (`run_udise_new_branch`,
+    `run_udise_import_branch`, `run_pen_new_branch`,
+    `run_pen_import_branch`), `src/engine/validation.py`
+    (`validate_student`/`log_state`), `src/engine/audit.py`
+    (`record_completion_event` for the OPENED->VERIFYING->RESOLVED
+    pattern, `record_pending_event` for branches that end pending), and
+    `src/engine/field_mapping.py` (sheet-row -> portal-field mapping; one
+    assumption flagged: UDISE sheet's single "Birth City" column stands
+    in for the portal's separate Taluka/Village fields, pending live-DOM
+    verification), `src/engine/routing.py` (class -> ID-track). Added
+    `GujaratUDISEPortalAdapter.read_generated_uid()` (spec §21).
+    Condition 3 adds a UDISE-already-GREEN precondition check
+    (`UdisePreconditionNotMetError` if not — spec §33.9 Case 2: a known
+    UID alone is not enough). Condition 4 composes both pending-outcome
+    branches (never itself directly video-demonstrated end-to-end per
+    spec §11 — it's the confirmed combination of the other two). Full
+    pipeline tests for all four
+    (`tests/integration/test_condition{1,2,3,4}_engine.py`) match the
+    decision document's acceptance diagram: Mock Sheet -> Engine -> real
+    fixture-driven Gujarat + National adapters -> SQLite audit trail
+    (hash-verified `pen_case_events`, correct terminal case_status per
+    condition: RESOLVED for 1/3, ACTION_REQUIRED/pending for 2/4) ->
+    spreadsheet verification (GREEN vs LIGHT_ORANGE, REMARK text, OGR
+    color never changed by gov-entry per spec §4.4/§128.4). 37/37 tests
+    project-wide.
 10. ND reconciliation branch (separate, explicit trigger) — mocked
-    scenarios: actual PEN discovered, PEN remains unavailable.
+    scenarios: actual PEN discovered, PEN remains unavailable. Not yet
+    started.
 11. Approval/status-check batch flow across both portals + Status-Changed
     manual review queue.
 12. Verification gates (consequential-action rule, `MOCK_SUCCESS` vs
@@ -163,14 +199,14 @@ and mocked/fixture portal pages as the primary implementation target.
 ## Mock scenario checklist (master spec decision §4 — minimum required before Live Verification Gate)
 
 **Gujarat UDISE mocks:**
-- [ ] New UDISE
-- [ ] Existing student search
-- [ ] Other-school student found
-- [ ] Transfer confirmation
-- [ ] Transfer Student page
-- [ ] Transfer From / Transfer To
-- [ ] "Student Transfer request saved successfully."
-- [ ] `REQUEST SENT`
+- [x] New UDISE
+- [x] Existing student search
+- [x] Other-school student found
+- [x] Transfer confirmation
+- [x] Transfer Student page
+- [x] Transfer From / Transfer To
+- [x] "Student Transfer request saved successfully."
+- [x] `REQUEST SENT`
 - [ ] Student Transfer Request List
 - [ ] Pending request
 - [ ] Session expiry
@@ -179,21 +215,21 @@ and mocked/fixture portal pages as the primary implementation target.
 - [ ] Duplicate-request protection
 
 **National UDISE+ mocks:**
-- [ ] New PEN
-- [ ] Successful student initialization
-- [ ] General Profile
-- [ ] Enrolment Profile
-- [ ] Facility Profile
-- [ ] "Data completion is complete."
-- [ ] PEN = `NA` on portal → spreadsheet PEN = `ND`
-- [ ] Aadhaar already registered
-- [ ] `View Details`
-- [ ] `Track By Details`
+- [x] New PEN
+- [x] Successful student initialization
+- [x] General Profile
+- [x] Enrolment Profile
+- [x] Facility Profile
+- [x] "Data completion is complete."
+- [x] PEN = `NA` on portal → spreadsheet PEN = `ND`
+- [x] Aadhaar already registered
+- [x] `View Details`
+- [x] `Track By Details`
 - [ ] Existing PEN discovery
-- [ ] Global Student Search
-- [ ] Student Status = `ACTIVE`
-- [ ] HOS Details
-- [ ] `IMPORT PENDING`
+- [x] Global Student Search
+- [x] Student Status = `ACTIVE`
+- [x] HOS Details
+- [x] `IMPORT PENDING`
 - [ ] Student Release Request generation
 - [ ] Release confirmation dialog
 - [ ] Release request success
@@ -242,11 +278,11 @@ LIVE CREDENTIALS: NOT CONFIGURED
 
 ## Testing matrix (spec §286 — minimum required coverage)
 
-- [ ] New UDISE + New PEN (Condition 1)
-- [ ] New UDISE + PEN Import (Condition 2)
-- [ ] UDISE Import + New PEN (Condition 3)
-- [ ] UDISE Import + PEN Import (Condition 4)
-- [ ] New PEN resulting in `ND`
+- [x] New UDISE + New PEN (Condition 1)
+- [x] New UDISE + PEN Import (Condition 2)
+- [x] UDISE Import + New PEN (Condition 3)
+- [x] UDISE Import + PEN Import (Condition 4)
+- [x] New PEN resulting in `ND`
 - [ ] `ND` later becoming an actual PEN (reconciliation)
 - [ ] Already-GREEN row is skipped
 - [ ] Duplicate search results → manual review, not auto-pick

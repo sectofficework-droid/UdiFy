@@ -77,6 +77,32 @@ def test_full_new_entry_flow_against_fixture(page):
     expect(page.get_by_text("Student saved successfully.")).to_be_visible()
 
 
+def test_udise_import_transfer_request_flow_against_fixture(page):
+    """UDISE Import / transfer-request confirmed pending outcome (spec §X):
+    other-school student found -> Confirm -> Transfer Student page ->
+    Update Transfer Request -> success message. Mock scenario checklist
+    items: Existing student search, Other-school student found, Transfer
+    confirmation, Transfer Student page, Transfer From/To, success message."""
+    adapter = GujaratUDISEPortalAdapter(page, timeout_ms=3000)
+    adapter.login("24224100067", "not-a-real-password")
+
+    found = adapter.search_existing_student_by_uid("LKG/KG1/PP2", "OTHER-SCHOOL-UID-001")
+    assert found is True
+
+    result = adapter.confirm_transfer_request()
+    assert result == "Student Transfer request saved successfully."
+
+
+def test_udise_import_search_no_match_returns_false(page):
+    """Mock scenario: searching a UID with no other-school match must
+    return False, never guess a match (spec §300)."""
+    adapter = GujaratUDISEPortalAdapter(page, timeout_ms=300)
+    adapter.login("24224100067", "not-a-real-password")
+
+    found = adapter.search_existing_student_by_uid("LKG/KG1/PP2", "NO-SUCH-UID")
+    assert found is False
+
+
 def test_verification_failure_raises_rather_than_assuming_success(page):
     """spec Final Authority §D: never assume success from a click alone —
     if the expected resulting state genuinely never appears, the adapter

@@ -2,129 +2,255 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>National UDISE+ — Mock Fixture (New PEN Entry)</title>
+<title>National UDISE+ — Mock Fixture (New PEN Entry / PEN Import)</title>
 </head>
 <body>
 
-<!-- ===================== LOGIN ===================== -->
-<section id="screen-login">
-  <label for="username">Username</label>
-  <input id="username" type="text">
-  <label for="password">Password</label>
-  <input id="password" type="password">
-  <button id="login-btn" type="button">Login</button>
-</section>
+<main id="app"></main>
 
-<!-- ===================== INITIALIZE NEW STUDENT ===================== -->
-<section id="screen-init" hidden>
-  <label for="init-class">Class</label>
-  <select id="init-class">
-    <option value="">--</option>
-    <option value="lkg">LKG/KG1/PP2</option>
-  </select>
+<!-- Each screen lives in its own <template> and is swapped into #app one
+     at a time (never left in the DOM hidden) — this fixture stands in for
+     several distinct real portal pages that legitimately reuse label text
+     ("Student Name", "Student PEN", etc.); toggling `hidden` on sibling
+     sections instead would leave every screen's form controls in the DOM
+     simultaneously and make get_by_label ambiguous (Playwright's label
+     matching, unlike get_by_role, is not visibility-filtered). -->
 
-  <label for="init-section">Section</label>
-  <select id="init-section">
-    <option value="">--</option>
-    <option value="a">A</option>
-  </select>
+<template id="tpl-login">
+  <section>
+    <label for="username">Username</label>
+    <input id="username" type="text">
+    <label for="password">Password</label>
+    <input id="password" type="password">
+    <button id="login-btn" type="button">Login</button>
+  </section>
+</template>
 
-  <label for="init-name">Student Name</label>
-  <input id="init-name" type="text">
+<template id="tpl-init">
+  <section>
+    <label for="init-class">Class</label>
+    <select id="init-class">
+      <option value="">--</option>
+      <option value="lkg">LKG/KG1/PP2</option>
+    </select>
 
-  <button type="button" id="add-new-student-btn">Add New Student</button>
+    <label for="init-section">Section</label>
+    <select id="init-section">
+      <option value="">--</option>
+      <option value="a">A</option>
+    </select>
 
-  <div id="init-success" hidden>
-    <p>The Student has been initialised/Saved Successfully.</p>
-    <button type="button" id="fill-general-profile-btn">Fill General Profile</button>
-  </div>
-</section>
+    <label for="init-name">Student Name</label>
+    <input id="init-name" type="text">
 
-<!-- ===================== GENERAL PROFILE ===================== -->
-<section id="screen-general" hidden>
-  <label for="guardian-name">Guardian's Name</label>
-  <input id="guardian-name" type="text">
+    <button type="button" id="add-new-student-btn">Add New Student</button>
 
-  <label for="mother-tongue">Mother Tongue of Student</label>
-  <input id="mother-tongue" type="text">
+    <div id="init-success" hidden>
+      <p>The Student has been initialised/Saved Successfully.</p>
+      <button type="button" id="fill-general-profile-btn">Fill General Profile</button>
+    </div>
 
-  <button type="button" id="general-next-btn">Next</button>
+    <hr>
+    <label for="check-aadhaar-availability">Check AADHAAR Number Availability</label>
+    <input type="checkbox" id="check-aadhaar-availability">
 
-  <!-- Consent dialog: only shown if the fixture is toggled to require it -->
-  <div id="consent-dialog" hidden>
-    <p>CONSENT FOR DEMOGRAPHIC AUTHENTICATION</p>
-    <button type="button" id="i-agree-btn">I Agree</button>
-  </div>
-</section>
+    <label for="aadhaar-number">Aadhaar Number</label>
+    <input id="aadhaar-number" type="text">
 
-<!-- ===================== ENROLMENT PROFILE ===================== -->
-<section id="screen-enrolment" hidden>
-  <label for="admission-no">Admission Number in Present School</label>
-  <input id="admission-no" type="text">
+    <button type="button" id="aadhaar-go-btn">Go</button>
 
-  <button type="button" role="button" aria-label="Next" id="enrolment-next-btn">Next</button>
-</section>
+    <div id="aadhaar-registered" hidden>
+      <p>AADHAAR number is already registered with some other student</p>
+      <button type="button" id="view-details-btn">View Details</button>
+    </div>
+    <div id="aadhaar-not-registered" hidden>No existing registration found.</div>
+  </section>
+</template>
 
-<!-- ===================== FACILITY PROFILE ===================== -->
-<section id="screen-facility" hidden>
-  <label for="height">Student's Height (in CMS)</label>
-  <input id="height" type="text">
+<template id="tpl-general">
+  <section>
+    <label for="guardian-name">Guardian's Name</label>
+    <input id="guardian-name" type="text">
 
-  <label for="weight">Student's Weight (in KGS)</label>
-  <input id="weight" type="text">
+    <label for="mother-tongue">Mother Tongue of Student</label>
+    <input id="mother-tongue" type="text">
 
-  <button type="button" role="button" aria-label="Next" id="facility-next-btn">Next</button>
-</section>
+    <button type="button" id="general-next-btn">Next</button>
 
-<!-- ===================== PROFILE PREVIEW ===================== -->
-<section id="screen-preview" hidden>
-  <p>Data completion is complete.</p>
-  <button type="button" id="okay-btn">Okay</button>
-</section>
+    <!-- Consent dialog: only shown if the fixture is toggled to require it -->
+    <div id="consent-dialog" hidden>
+      <p>CONSENT FOR DEMOGRAPHIC AUTHENTICATION</p>
+      <button type="button" id="i-agree-btn">I Agree</button>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-enrolment">
+  <section>
+    <label for="admission-no">Admission Number in Present School</label>
+    <input id="admission-no" type="text">
+
+    <button type="button" role="button" aria-label="Next" id="enrolment-next-btn">Next</button>
+  </section>
+</template>
+
+<template id="tpl-facility">
+  <section>
+    <label for="height">Student's Height (in CMS)</label>
+    <input id="height" type="text">
+
+    <label for="weight">Student's Weight (in KGS)</label>
+    <input id="weight" type="text">
+
+    <button type="button" role="button" aria-label="Next" id="facility-next-btn">Next</button>
+  </section>
+</template>
+
+<template id="tpl-preview">
+  <section>
+    <p>Data completion is complete.</p>
+    <button type="button" id="okay-btn">Okay</button>
+  </section>
+</template>
+
+<template id="tpl-track-by-details">
+  <section>
+    <h2>Track By Details</h2>
+
+    <label for="track-pen">Student PEN</label>
+    <input id="track-pen" type="text" value="12345678901" readonly>
+
+    <label for="track-name">Student Name</label>
+    <input id="track-name" type="text" value="Existing Other-School Student" readonly>
+
+    <label for="track-udise">UDISE Code</label>
+    <input id="track-udise" type="text" value="24224100099" readonly>
+
+    <label for="track-school-name">School Name</label>
+    <input id="track-school-name" type="text" value="Other School, Ganjam" readonly>
+
+    <button type="button" id="global-search-nav-btn">Global Student Search</button>
+  </section>
+</template>
+
+<template id="tpl-global-search">
+  <section>
+    <span>Global Student Search</span>
+
+    <label for="gs-mode-pen">Student PEN</label>
+    <input type="checkbox" id="gs-mode-pen">
+
+    <label for="gs-pen">PEN</label>
+    <input id="gs-pen" type="text">
+
+    <button type="button" id="gs-search-btn">Search</button>
+
+    <div id="gs-result" hidden>
+      <label for="gs-student-name">Student Name</label>
+      <input id="gs-student-name" type="text" value="Existing Other-School Student" readonly>
+
+      <label for="gs-student-status">Student Status</label>
+      <input id="gs-student-status" type="text" value="ACTIVE" readonly>
+
+      <label for="gs-school-details">School Details</label>
+      <input id="gs-school-details" type="text" value="Other School, Ganjam" readonly>
+
+      <label for="gs-school-udise">School UDISE</label>
+      <input id="gs-school-udise" type="text" value="24224100099" readonly>
+
+      <button type="button" id="hos-details-btn">HOS Details</button>
+    </div>
+
+    <div id="hos-details-modal" hidden>
+      <h2>HOS Details</h2>
+      <label for="hos-state">State</label>
+      <input id="hos-state" type="text" value="Odisha" readonly>
+
+      <label for="hos-district">District</label>
+      <input id="hos-district" type="text" value="Ganjam" readonly>
+
+      <label for="hos-block">Block</label>
+      <input id="hos-block" type="text" value="Sheragada" readonly>
+
+      <label for="hos-name">Headmaster/Principal</label>
+      <input id="hos-name" type="text" value="Test HOS Name" readonly>
+
+      <label for="hos-contact">Contact No.</label>
+      <input id="hos-contact" type="text" value="9000000000" readonly>
+    </div>
+  </section>
+</template>
 
 <script>
   var REQUIRE_CONSENT = new URLSearchParams(window.location.search).get('consent') === '1';
+  var app = document.getElementById('app');
 
-  function show(id) {
-    document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
-    document.getElementById(id).hidden = false;
+  function show(name) {
+    var tpl = document.getElementById('tpl-' + name);
+    app.innerHTML = '';
+    app.appendChild(tpl.content.cloneNode(true));
   }
 
-  document.getElementById('login-btn').addEventListener('click', function () {
-    show('screen-init');
-  });
+  show('login');
 
-  document.getElementById('add-new-student-btn').addEventListener('click', function () {
-    document.getElementById('init-success').hidden = false;
-  });
+  app.addEventListener('click', function (e) {
+    var id = e.target && e.target.id;
+    if (!id) return;
 
-  document.getElementById('fill-general-profile-btn').addEventListener('click', function () {
-    show('screen-general');
-  });
-
-  document.getElementById('general-next-btn').addEventListener('click', function () {
-    if (REQUIRE_CONSENT && document.getElementById('consent-dialog').hidden) {
-      document.getElementById('consent-dialog').hidden = false;
-      return; // do NOT advance — the real portal blocks here until consent
+    switch (id) {
+      case 'login-btn':
+        show('init');
+        break;
+      case 'add-new-student-btn':
+        document.getElementById('init-success').hidden = false;
+        break;
+      case 'fill-general-profile-btn':
+        show('general');
+        break;
+      case 'general-next-btn':
+        if (REQUIRE_CONSENT && document.getElementById('consent-dialog').hidden) {
+          document.getElementById('consent-dialog').hidden = false;
+          return; // do NOT advance — the real portal blocks here until consent
+        }
+        show('enrolment');
+        break;
+      case 'i-agree-btn':
+        document.getElementById('consent-dialog').hidden = true;
+        show('enrolment');
+        break;
+      case 'enrolment-next-btn':
+        show('facility');
+        break;
+      case 'facility-next-btn':
+        show('preview');
+        break;
+      case 'okay-btn':
+        app.innerHTML = '<p>Back to Student Dashboard</p>';
+        break;
+      case 'aadhaar-go-btn':
+        var aadhaar = document.getElementById('aadhaar-number').value;
+        var registered = aadhaar === '999988887777';
+        document.getElementById('aadhaar-registered').hidden = !registered;
+        document.getElementById('aadhaar-not-registered').hidden = registered;
+        break;
+      case 'view-details-btn':
+        show('track-by-details');
+        break;
+      case 'global-search-nav-btn':
+        show('global-search');
+        break;
+      case 'gs-search-btn':
+        document.getElementById('gs-result').hidden = false;
+        break;
+      case 'hos-details-btn':
+        // Removed (not just hidden) so it can never collide with the
+        // modal's own "HOS Details" heading under exact-text matching —
+        // Playwright's get_by_text/get_by_label do not filter out merely
+        // `hidden` elements, only ones absent from the DOM.
+        e.target.remove();
+        document.getElementById('hos-details-modal').hidden = false;
+        break;
     }
-    show('screen-enrolment');
-  });
-
-  document.getElementById('i-agree-btn').addEventListener('click', function () {
-    document.getElementById('consent-dialog').hidden = true;
-    show('screen-enrolment');
-  });
-
-  document.getElementById('enrolment-next-btn').addEventListener('click', function () {
-    show('screen-facility');
-  });
-
-  document.getElementById('facility-next-btn').addEventListener('click', function () {
-    show('screen-preview');
-  });
-
-  document.getElementById('okay-btn').addEventListener('click', function () {
-    document.getElementById('screen-preview').innerHTML = '<p>Back to Student Dashboard</p>';
   });
 </script>
 </body>
