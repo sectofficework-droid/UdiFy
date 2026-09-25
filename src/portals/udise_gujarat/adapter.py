@@ -33,6 +33,7 @@ from src.diagnostics.logging_setup import get_logger, log_event
 from src.portals.base import (
     AutomationPausedForUser,
     ConsequentialActionUnverifiedError,
+    ci_exact,
 )
 
 _logger = get_logger("portals.gujarat_udise")
@@ -121,7 +122,7 @@ class GujaratUDISEPortalAdapter:
             )
         self.page.get_by_role("button", name="LOG IN").click()
         self._verify_visible(
-            self.page.get_by_text("Home", exact=True), "Expected Home navigation after login"
+            self.page.get_by_text(ci_exact("Home")), "Expected Home navigation after login"
         )
 
     def _captcha_present(self) -> bool:
@@ -132,10 +133,15 @@ class GujaratUDISEPortalAdapter:
 
     # -- New Entry: birth route + CTS details (spec §15-21) --------------
     def open_student_new_entry(self) -> None:
-        self.page.get_by_text("Manage Students", exact=True).click()
-        self.page.get_by_text("Student New Entry", exact=True).click()
+        self.page.get_by_text(ci_exact("Manage Students")).click()
+        # role="button", not get_by_text: the nav item's own text
+        # case-insensitively equals the destination screen's heading text
+        # ("Student New Entry" vs "STUDENT NEW ENTRY") — scoping by role
+        # is what keeps the two distinguishable once matching tolerates
+        # capitalization differences (spec's UI-change resilience).
+        self.page.get_by_role("button", name=ci_exact("Student New Entry")).click()
         self._verify_visible(
-            self.page.get_by_text("STUDENT NEW ENTRY", exact=True),
+            self.page.get_by_role("heading", name=ci_exact("Student New Entry")),
             "Expected the Student New Entry screen",
         )
 
@@ -176,7 +182,7 @@ class GujaratUDISEPortalAdapter:
 
         p.get_by_role("button", name="ADD NEW STUDENT").click()
         self._verify_visible(
-            p.get_by_text(details.student_name, exact=True),
+            p.get_by_text(ci_exact(details.student_name)),
             f"Expected {details.student_name!r} to appear in the Manage "
             "Students list after ADD NEW STUDENT",
         )
@@ -210,9 +216,9 @@ class GujaratUDISEPortalAdapter:
     # §B.5 — so this stays generic/dict-driven rather than hardcoding
     # fields this project was never given confirmed evidence for.)
     def open_student_profile(self, student_name: str) -> None:
-        self.page.get_by_text(student_name, exact=True).click()
+        self.page.get_by_text(ci_exact(student_name)).click()
         self._verify_visible(
-            self.page.get_by_text("Personal", exact=True),
+            self.page.get_by_text(ci_exact("Personal")),
             "Expected the student profile (Personal/Education/Bank/... tabs)",
         )
 
@@ -248,13 +254,13 @@ class GujaratUDISEPortalAdapter:
         select class -> search by UID. Returns True if an existing
         student (at another school) was found."""
         p = self.page
-        p.get_by_text("Manage Students", exact=True).click()
-        p.get_by_text("Standard Wise Entry", exact=True).click()
+        p.get_by_text(ci_exact("Manage Students")).click()
+        p.get_by_text(ci_exact("Standard Wise Entry")).click()
         p.get_by_label("Class").select_option(label=class_name)
         p.get_by_label("Search").fill(uid)
         p.get_by_role("button", name="Search").click()
         try:
-            expect(p.get_by_text("Transfer", exact=True)).to_be_visible(timeout=self.timeout_ms)
+            expect(p.get_by_text(ci_exact("Transfer"))).to_be_visible(timeout=self.timeout_ms)
             return True
         except AssertionError:
             return False
@@ -269,13 +275,13 @@ class GujaratUDISEPortalAdapter:
         p = self.page
         p.get_by_role("button", name="Confirm").click()
         self._verify_visible(
-            p.get_by_text("Transfer Student", exact=True),
+            p.get_by_text(ci_exact("Transfer Student")),
             "Expected the Transfer Student page (Transfer From/Transfer To)",
         )
         p.get_by_role("button", name="Update Transfer Request").click()
         success_text = "Student Transfer request saved successfully."
         self._verify_visible(
-            p.get_by_text(success_text, exact=True), f"Expected confirmation message: {success_text!r}"
+            p.get_by_text(ci_exact(success_text)), f"Expected confirmation message: {success_text!r}"
         )
         log_event(
             _logger, logging.INFO, "transfer request confirmed",
@@ -286,9 +292,9 @@ class GujaratUDISEPortalAdapter:
     # -- Student Transfer Request List / status check (spec §X.14, §M) ---
     def open_transfer_request_list(self) -> None:
         p = self.page
-        p.get_by_text("Manage Students", exact=True).click()
-        p.get_by_text("Student Transfer Request List", exact=True).click()
-        p.get_by_text("Sent Transfer Requests", exact=True).click()
+        p.get_by_text(ci_exact("Manage Students")).click()
+        p.get_by_text(ci_exact("Student Transfer Request List")).click()
+        p.get_by_text(ci_exact("Sent Transfer Requests")).click()
         self._verify_visible(
             p.get_by_text("Sent Transfer Requests (All)", exact=True),
             "Expected the Sent Transfer Requests list",

@@ -312,9 +312,34 @@ and mocked/fixture portal pages as the primary implementation target.
     1 new smoke test (`tests/unit/test_app_smoke.py`: constructs
     `AppContext` + `MainWindow`, visits every screen, asserts no
     exception). 49/49 tests project-wide.
-15. UI-change resilience test pass (spec §10464-10483) before any batch
-    scaling — selector fallback tests against deliberately altered mocked
-    pages.
+15. [x] UI-change resilience test pass (spec "UI CHANGE HANDLING —
+    IMPLEMENTATION ACCEPTANCE TESTS", ~line 10481) — new
+    `tests/fixtures/gujarat_udise/new_entry_ui_changed.html`: the full
+    New Entry flow with every element id renamed, every field wrapped in
+    an extra `<div>`, CTS fields reordered, and button/heading text
+    changed to a semantically-equivalent casing/wording ("LOG IN" ->
+    "Log in", "ADD NEW STUDENT" -> "Add new student", "SAVE STUDENT" ->
+    "Save Student", "Next" -> "next", "STUDENT NEW ENTRY" -> "Student New
+    Entry"). `tests/integration/test_ui_change_resilience.py` runs the
+    exact same, unmodified `GujaratUDISEPortalAdapter` methods Condition 1
+    uses against it end-to-end, plus a second test proving the spec's
+    other half — an unrecognized state still fails safely with a
+    structured `ConsequentialActionUnverifiedError`, never silently
+    treated as success. Building this test found and fixed a **real**
+    latent bug it was specifically designed to catch: added a shared
+    `ci_exact()` helper (`src/portals/base.py`) and used it everywhere
+    both adapters previously used case-SENSITIVE `exact=True` matching —
+    the spec explicitly requires tolerating "minor text punctuation/
+    capitalization changes", which case-sensitive exact matching did not.
+    That change immediately exposed a genuine same-page text collision in
+    the *original*, unmodified fixture ("Student New Entry" nav button
+    vs. "STUDENT NEW ENTRY" heading, both present in the DOM
+    simultaneously per the established "hidden doesn't filter get_by_text"
+    lesson from step 9) that had been silently relying on case-sensitivity
+    for disambiguation; fixed by scoping those two locators to
+    `get_by_role("button", ...)` / `get_by_role("heading", ...)` — a more
+    correct selector than plain text matching regardless of the
+    capitalization question. 51/51 tests project-wide.
 16. Package with PyInstaller.
 17. **Stop at the Live Verification Gate** — see checklist below. Do not
     proceed to real credential configuration or controlled live

@@ -26,6 +26,7 @@ from src.diagnostics.logging_setup import get_logger, log_event
 from src.portals.base import (
     AutomationPausedForUser,
     ConsequentialActionUnverifiedError,
+    ci_exact,
 )
 
 _logger = get_logger("portals.national_udise")
@@ -204,7 +205,7 @@ class NationalUDISEPortalAdapter:
         p.get_by_label("Student Name").fill(details.student_name)
         p.get_by_role("button", name="Add New Student").click()
         self._verify_visible(
-            p.get_by_text(INITIALIZATION_SUCCESS_TEXT, exact=True),
+            p.get_by_text(ci_exact(INITIALIZATION_SUCCESS_TEXT)),
             f"Expected initialization success message: {INITIALIZATION_SUCCESS_TEXT!r}",
         )
         log_event(
@@ -258,7 +259,7 @@ class NationalUDISEPortalAdapter:
         Returns the exact observed text; raises if it never appears."""
         p = self.page
         self._verify_visible(
-            p.get_by_text(PROFILE_COMPLETE_TEXT, exact=True),
+            p.get_by_text(ci_exact(PROFILE_COMPLETE_TEXT)),
             f"Expected final completion message: {PROFILE_COMPLETE_TEXT!r}",
         )
         p.get_by_role("button", name="Okay").click()
@@ -271,12 +272,12 @@ class NationalUDISEPortalAdapter:
         registered elsewhere (existing-student path) — this is a
         business-routing signal, never a technical error (spec §25/§6)."""
         p = self.page
-        p.get_by_label("Check AADHAAR Number Availability", exact=True).check()
-        p.get_by_label("Aadhaar Number", exact=True).fill(aadhaar)
+        p.get_by_label(ci_exact("Check AADHAAR Number Availability")).check()
+        p.get_by_label(ci_exact("Aadhaar Number")).fill(aadhaar)
         p.get_by_role("button", name="Go").click()
         try:
             expect(
-                p.get_by_text(AADHAAR_ALREADY_REGISTERED_TEXT, exact=True)
+                p.get_by_text(ci_exact(AADHAAR_ALREADY_REGISTERED_TEXT))
             ).to_be_visible(timeout=self.timeout_ms)
             log_event(
                 _logger, logging.INFO, "EXISTING_STUDENT_FOUND_BY_AADHAAR",
@@ -292,14 +293,14 @@ class NationalUDISEPortalAdapter:
         p = self.page
         p.get_by_role("button", name="View Details").click()
         self._verify_visible(
-            p.get_by_text("Track By Details", exact=True),
+            p.get_by_text(ci_exact("Track By Details")),
             "Expected the Track By Details screen",
         )
         return TrackByDetailsResult(
-            student_pen=p.get_by_label("Student PEN", exact=True).input_value(),
-            student_name=p.get_by_label("Student Name", exact=True).input_value(),
-            source_school_udise=p.get_by_label("UDISE Code", exact=True).input_value(),
-            source_school_name=p.get_by_label("School Name", exact=True).input_value(),
+            student_pen=p.get_by_label(ci_exact("Student PEN")).input_value(),
+            student_name=p.get_by_label(ci_exact("Student Name")).input_value(),
+            source_school_udise=p.get_by_label(ci_exact("UDISE Code")).input_value(),
+            source_school_name=p.get_by_label(ci_exact("School Name")).input_value(),
         )
 
     def global_student_search_by_pen(self, pen: str) -> GlobalSearchResult:
@@ -307,19 +308,19 @@ class NationalUDISEPortalAdapter:
         `student_status` is the decisive field (spec §13) — the caller
         must check it explicitly, this adapter never interprets it."""
         p = self.page
-        p.get_by_text("Global Student Search", exact=True).click()
-        p.get_by_label("Student PEN", exact=True).check()
-        p.get_by_label("PEN", exact=True).fill(pen)
-        p.get_by_role("button", name="Search", exact=True).click()
+        p.get_by_text(ci_exact("Global Student Search")).click()
+        p.get_by_label(ci_exact("Student PEN")).check()
+        p.get_by_label(ci_exact("PEN")).fill(pen)
+        p.get_by_role("button", name=ci_exact("Search")).click()
         self._verify_visible(
-            p.get_by_label("Student Status", exact=True), "Expected a Global Student Search result"
+            p.get_by_label(ci_exact("Student Status")), "Expected a Global Student Search result"
         )
         return GlobalSearchResult(
-            student_name=p.get_by_label("Student Name", exact=True).input_value(),
+            student_name=p.get_by_label(ci_exact("Student Name")).input_value(),
             pen=pen,
-            student_status=p.get_by_label("Student Status", exact=True).input_value(),
-            source_school_name=p.get_by_label("School Details", exact=True).input_value(),
-            source_school_udise=p.get_by_label("School UDISE", exact=True).input_value(),
+            student_status=p.get_by_label(ci_exact("Student Status")).input_value(),
+            source_school_name=p.get_by_label(ci_exact("School Details")).input_value(),
+            source_school_udise=p.get_by_label(ci_exact("School UDISE")).input_value(),
         )
 
     def open_hos_details(self) -> HosDetails:
@@ -329,14 +330,14 @@ class NationalUDISEPortalAdapter:
         p = self.page
         p.get_by_role("button", name="HOS Details").click()
         self._verify_visible(
-            p.get_by_text("HOS Details", exact=True), "Expected the HOS Details modal"
+            p.get_by_text(ci_exact("HOS Details")), "Expected the HOS Details modal"
         )
         return HosDetails(
-            state=p.get_by_label("State", exact=True).input_value(),
-            district=p.get_by_label("District", exact=True).input_value(),
-            block=p.get_by_label("Block", exact=True).input_value(),
-            hos_name=p.get_by_label("Headmaster/Principal", exact=True).input_value(),
-            hos_contact=p.get_by_label("Contact No.", exact=True).input_value(),
+            state=p.get_by_label(ci_exact("State")).input_value(),
+            district=p.get_by_label(ci_exact("District")).input_value(),
+            block=p.get_by_label(ci_exact("Block")).input_value(),
+            hos_name=p.get_by_label(ci_exact("Headmaster/Principal")).input_value(),
+            hos_contact=p.get_by_label(ci_exact("Contact No.")).input_value(),
         )
 
     # ===== PEN Request Sent — Student Release Request (DB-DESIGN.md §C.3b) =====
@@ -346,38 +347,38 @@ class NationalUDISEPortalAdapter:
         Details. The caller must verify the returned identity before
         proceeding (spec Final Authority §E multi-attribute identity)."""
         p = self.page
-        p.get_by_text("Student Release Request Management", exact=True).click()
-        p.get_by_text("Generate Student Release Request Within State", exact=True).click()
-        p.get_by_label("PEN", exact=True).fill(pen)
-        p.get_by_label("DOB", exact=True).fill(dob)
+        p.get_by_text(ci_exact("Student Release Request Management")).click()
+        p.get_by_text(ci_exact("Generate Student Release Request Within State")).click()
+        p.get_by_label(ci_exact("PEN")).fill(pen)
+        p.get_by_label(ci_exact("DOB")).fill(dob)
         p.get_by_role("button", name="Get Details").click()
         self._verify_visible(
-            p.get_by_text("Student Basic Details", exact=True),
+            p.get_by_text(ci_exact("Student Basic Details")),
             "Expected Student Basic Details after Get Details",
         )
         return StudentBasicDetails(
             pen=pen,
             dob=dob,
-            udise_code=p.get_by_label("UDISE Code", exact=True).input_value(),
-            school_name=p.get_by_label("School Name", exact=True).input_value(),
-            student_name=p.get_by_label("Student Name", exact=True).input_value(),
-            gender=p.get_by_label("Gender", exact=True).input_value(),
-            student_state_code=p.get_by_label("Student State Code", exact=True).input_value(),
-            mother_name=p.get_by_label("Mother's Name", exact=True).input_value(),
-            father_name=p.get_by_label("Father's Name", exact=True).input_value(),
-            aadhaar_no=p.get_by_label("Aadhaar No.", exact=True).input_value(),
-            name_as_per_aadhaar=p.get_by_label("Name as per Aadhaar", exact=True).input_value(),
-            aadhaar_capture_status=p.get_by_label("Aadhaar Capture Status", exact=True).input_value(),
+            udise_code=p.get_by_label(ci_exact("UDISE Code")).input_value(),
+            school_name=p.get_by_label(ci_exact("School Name")).input_value(),
+            student_name=p.get_by_label(ci_exact("Student Name")).input_value(),
+            gender=p.get_by_label(ci_exact("Gender")).input_value(),
+            student_state_code=p.get_by_label(ci_exact("Student State Code")).input_value(),
+            mother_name=p.get_by_label(ci_exact("Mother's Name")).input_value(),
+            father_name=p.get_by_label(ci_exact("Father's Name")).input_value(),
+            aadhaar_no=p.get_by_label(ci_exact("Aadhaar No.")).input_value(),
+            name_as_per_aadhaar=p.get_by_label(ci_exact("Name as per Aadhaar")).input_value(),
+            aadhaar_capture_status=p.get_by_label(ci_exact("Aadhaar Capture Status")).input_value(),
         )
 
     def submit_release_admission_detail(self, admission: ReleaseAdmissionDetail) -> None:
         """Spec step 4 — Student Admission Detail (destination class/
         section/admission date/remark)."""
         p = self.page
-        p.get_by_label("Class", exact=True).select_option(label=admission.class_name)
-        p.get_by_label("Section", exact=True).select_option(label=admission.section)
-        p.get_by_label("Date of Admission", exact=True).fill(admission.admission_date)
-        p.get_by_label("Select Remark", exact=True).select_option(label=admission.remark)
+        p.get_by_label(ci_exact("Class")).select_option(label=admission.class_name)
+        p.get_by_label(ci_exact("Section")).select_option(label=admission.section)
+        p.get_by_label(ci_exact("Date of Admission")).fill(admission.admission_date)
+        p.get_by_label(ci_exact("Select Remark")).select_option(label=admission.remark)
 
     def generate_release_request(self) -> str:
         """Spec steps 5-7: Generate Student Release Request -> confirmation
@@ -386,15 +387,15 @@ class NationalUDISEPortalAdapter:
         p = self.page
         p.get_by_role("button", name="Generate Student Release Request").click()
         self._verify_visible(
-            p.get_by_text("Confirm Release Request", exact=True),
+            p.get_by_text(ci_exact("Confirm Release Request")),
             "Expected the release-request confirmation dialog",
         )
         p.get_by_role("button", name="Confirm").click()
         self._verify_visible(
-            p.get_by_text(RELEASE_REQUEST_SUCCESS_TEXT, exact=True),
+            p.get_by_text(ci_exact(RELEASE_REQUEST_SUCCESS_TEXT)),
             f"Expected success message: {RELEASE_REQUEST_SUCCESS_TEXT!r}",
         )
-        request_no = p.get_by_label("Request No.", exact=True).input_value()
+        request_no = p.get_by_label(ci_exact("Request No.")).input_value()
         if not request_no:
             raise ConsequentialActionUnverifiedError(
                 "Release request succeeded but no Request No. was captured"
@@ -409,7 +410,7 @@ class NationalUDISEPortalAdapter:
     def open_sent_requests(self) -> None:
         """Spec "HOW TO VIEW SENT REQUEST" §1-2 navigation."""
         p = self.page
-        p.get_by_text("Student Release Request Management", exact=True).click()
+        p.get_by_text(ci_exact("Student Release Request Management")).click()
         p.get_by_text(
             "View Student Release Request(s) Within State (Sent)", exact=True
         ).click()
@@ -455,12 +456,12 @@ class NationalUDISEPortalAdapter:
         )
         return SentRequestStudentSnapshot(
             request_no=request_no,
-            pen=p.get_by_label("PEN", exact=True).input_value(),
-            student_name=p.get_by_label("Student Name", exact=True).input_value(),
-            mother_name=p.get_by_label("Mother's Name", exact=True).input_value(),
-            dob=p.get_by_label("DOB", exact=True).input_value(),
-            father_name=p.get_by_label("Father's Name", exact=True).input_value(),
-            class_name=p.get_by_label("Class", exact=True).input_value(),
+            pen=p.get_by_label(ci_exact("PEN")).input_value(),
+            student_name=p.get_by_label(ci_exact("Student Name")).input_value(),
+            mother_name=p.get_by_label(ci_exact("Mother's Name")).input_value(),
+            dob=p.get_by_label(ci_exact("DOB")).input_value(),
+            father_name=p.get_by_label(ci_exact("Father's Name")).input_value(),
+            class_name=p.get_by_label(ci_exact("Class")).input_value(),
         )
 
     # ===== ND Reconciliation (spec §165/§260-263) =====
@@ -480,13 +481,13 @@ class NationalUDISEPortalAdapter:
         method never silently picks one.
         """
         p = self.page
-        p.get_by_text("Global Student Search", exact=True).click()
-        p.get_by_label("Class", exact=True).select_option(label=class_name)
-        p.get_by_label("Search By Name", exact=True).check()
-        p.get_by_label("Name", exact=True).fill(student_name)
-        p.get_by_role("button", name="Search", exact=True).click()
+        p.get_by_text(ci_exact("Global Student Search")).click()
+        p.get_by_label(ci_exact("Class")).select_option(label=class_name)
+        p.get_by_label(ci_exact("Search By Name")).check()
+        p.get_by_label(ci_exact("Name")).fill(student_name)
+        p.get_by_role("button", name=ci_exact("Search")).click()
         self._verify_visible(
-            p.get_by_text("Search Results", exact=True),
+            p.get_by_text(ci_exact("Search Results")),
             "Expected ND reconciliation search results",
         )
         rows = p.get_by_role("row")

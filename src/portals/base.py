@@ -8,7 +8,24 @@ verification-failure exceptions every adapter raises the same way.
 
 from __future__ import annotations
 
+import re
 from enum import Enum
+
+
+def ci_exact(text: str) -> re.Pattern[str]:
+    """A whole-string, case-insensitive match for get_by_text/get_by_label/
+    get_by_role(name=...).
+
+    Spec's "UI CHANGE HANDLING" acceptance tests require tolerating "minor
+    text punctuation/capitalization changes" while still treating a
+    genuinely different state as unrecognized. Plain `exact=True` is
+    case-SENSITIVE — it was adopted elsewhere in these adapters only to
+    stop a short confirmed label from ambiguously substring-matching a
+    longer one on the same screen (e.g. "PEN" vs "Student PEN"), not to
+    demand exact casing. This keeps that whole-string precision while
+    adding the capitalization tolerance the spec explicitly requires.
+    """
+    return re.compile(r"^\s*" + re.escape(text.strip()) + r"\s*$", re.IGNORECASE)
 
 
 class PortalName(str, Enum):

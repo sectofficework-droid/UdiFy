@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gujarat UDISE — Mock Fixture (New Entry, UI CHANGED variant)</title>
+</head>
+<body>
+<!-- UI-change resilience fixture (spec "UI CHANGE HANDLING — IMPLEMENTATION
+     ACCEPTANCE TESTS", ~line 10481): same business flow as new_entry.html,
+     but every element id is renamed, every field is wrapped in an extra
+     decorative <div>, form-field order is shuffled, and button label
+     casing/punctuation changed to a semantically-equivalent variant.
+     GujaratUDISEPortalAdapter is exercised completely UNCHANGED against
+     this file — role/label/exact-text locators must not care about any
+     of the above, only about actual field semantics changing. -->
+
+<div class="card-wrap">
+<section id="scr-login">
+  <div class="field-wrap">
+    <label for="in-school-code">School Code</label>
+    <input id="in-school-code" type="text">
+  </div>
+  <div class="field-wrap">
+    <label for="in-password">Password</label>
+    <input id="in-password" type="password">
+  </div>
+  <div class="btn-wrap">
+    <button id="btn-login" type="button">Log in</button>
+  </div>
+</section>
+</div>
+
+<div class="card-wrap">
+<section id="scr-home" hidden>
+  <div class="header-row"><span>Home</span></div>
+  <div class="nav-wrap">
+    <button type="button" id="btn-nav-manage-students">Manage Students</button>
+    <button type="button" id="btn-nav-new-entry" hidden>Student New Entry</button>
+  </div>
+</section>
+</div>
+
+<div class="card-wrap">
+<section id="scr-new-entry" hidden>
+  <div class="title-row"><h2>Student New Entry</h2></div>
+
+  <div class="field-wrap">
+    <label for="in-birth-district">Birth District</label>
+    <select id="in-birth-district">
+      <option value="">--</option>
+      <option value="ganjam">GANJAM</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-state">Birth State</label>
+    <select id="in-birth-state">
+      <option value="">--</option>
+      <option value="odisha">Odisha</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-taluka">Birth Taluka</label>
+    <select id="in-birth-taluka">
+      <option value="">--</option>
+      <option value="sheragada">SHERAGADA</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-village">Birth Village</label>
+    <input id="in-birth-village" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-city">Birth City/Place</label>
+    <input id="in-birth-city" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-month">Birth Month</label>
+    <select id="in-birth-month">
+      <option value="">--</option>
+      <option value="january">January</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-year">Birth Year</label>
+    <select id="in-birth-year">
+      <option value="">--</option>
+      <option value="2022">2022</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-birth-date">Birth Date</label>
+    <select id="in-birth-date">
+      <option value="">--</option>
+      <option value="02">02</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-brn">Birth Certificate No.</label>
+    <input id="in-brn" type="text">
+  </div>
+
+  <div class="btn-wrap"><button type="button" id="btn-birth-next">next</button></div>
+</section>
+</div>
+
+<div class="card-wrap">
+<section id="scr-cts" hidden>
+  <div class="field-wrap">
+    <label for="in-cts-father">Father's Name</label>
+    <input id="in-cts-father" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-cts-mother">Mother's Name</label>
+    <input id="in-cts-mother" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-cts-name">Student Name</label>
+    <input id="in-cts-name" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-cts-disabled">Whether child is disabled</label>
+    <select id="in-cts-disabled">
+      <option value="No">No</option>
+      <option value="Yes">Yes</option>
+    </select>
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-cts-surname">Surname</label>
+    <input id="in-cts-surname" type="text">
+  </div>
+
+  <div class="field-wrap">
+    <label for="in-cts-dob">Date of Birth</label>
+    <input id="in-cts-dob" type="text">
+  </div>
+
+  <div class="btn-wrap"><button type="button" id="btn-add-student">Add new student</button></div>
+</section>
+</div>
+
+<div class="card-wrap">
+<section id="scr-list" hidden>
+  <div id="wrap-student-list"></div>
+</section>
+</div>
+
+<div class="card-wrap">
+<section id="scr-profile" hidden>
+  <div role="tablist" class="tabs-wrap">
+    <button type="button" role="tab" aria-label="Personal">Personal</button>
+    <button type="button" role="tab" aria-label="Education">Education</button>
+    <button type="button" role="tab" aria-label="Bank">Bank</button>
+  </div>
+
+  <div id="wrap-tab-personal">
+    <div class="field-wrap">
+      <label for="in-p-category">Category</label>
+      <input id="in-p-category" type="text">
+    </div>
+    <div class="field-wrap">
+      <label for="in-p-mother-tongue">Mother Tongue</label>
+      <input id="in-p-mother-tongue" type="text">
+    </div>
+
+    <div class="btn-wrap">
+      <button type="button" role="button" aria-label="SAVE STUDENT" id="btn-save-personal">Save student</button>
+    </div>
+    <div id="save-ok" hidden>Student saved successfully.</div>
+  </div>
+</section>
+</div>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
+    document.getElementById(id).hidden = false;
+  }
+
+  document.getElementById('btn-login').addEventListener('click', function () {
+    show('scr-home');
+  });
+
+  document.getElementById('btn-nav-manage-students').addEventListener('click', function () {
+    document.getElementById('btn-nav-new-entry').hidden = false;
+  });
+
+  document.getElementById('btn-nav-new-entry').addEventListener('click', function () {
+    show('scr-new-entry');
+  });
+
+  document.getElementById('btn-birth-next').addEventListener('click', function () {
+    show('scr-cts');
+  });
+
+  document.getElementById('btn-add-student').addEventListener('click', function () {
+    var name = document.getElementById('in-cts-name').value;
+    var uid = '24224100067' + String(Math.floor(1000000 + Math.random() * 8999999));
+    var el = document.createElement('div');
+    el.className = 'student-row';
+    el.setAttribute('data-uid', uid);
+
+    var nameSpan = document.createElement('span');
+    nameSpan.textContent = name;
+    nameSpan.addEventListener('click', function () { show('scr-profile'); });
+    el.appendChild(nameSpan);
+
+    var uidSpan = document.createElement('span');
+    uidSpan.className = 'uid-cell';
+    uidSpan.textContent = uid;
+    el.appendChild(uidSpan);
+
+    document.getElementById('wrap-student-list').appendChild(el);
+    show('scr-list');
+  });
+
+  document.getElementById('btn-save-personal').addEventListener('click', function () {
+    document.getElementById('save-ok').hidden = false;
+  });
+</script>
+</body>
+</html>
