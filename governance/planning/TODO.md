@@ -13,8 +13,8 @@
 | PLANNING | **Approved** ("approve plan", 2026-09-25) | **"approve plan"** ✅ |
 | DESIGN FIXED | **Approved** ("approve design", 2026-09-25) | **"approve design"** ✅ |
 | UI DESIGN CONFIRMED | **Closed** ("code it", 2026-09-25) | **"UI is final" / "start backend"** ✅ |
-| CODING | **In progress** — mock-first build order below | **"code it"** ✅ |
-| TESTING | Not started | **"run tests" / "test it"** |
+| CODING | **Mock-first build order complete** (steps 1-16 below, 2026-09-25) — stopped at the Live Verification Gate (step 17) per the standing instruction to complete the whole project autonomously; live credential configuration and controlled live verification remain out of scope without the user present | **"code it"** ✅ |
+| TESTING | Continuous throughout CODING per RULEBOOK §L/§J13 (60/60 unit+integration tests passing, including a dedicated UI-change resilience pass) — not the same as the formal TESTING gate, which still awaits its own trigger phrase | **"run tests" / "test it"** |
 | RELEASE | Not started | **"approve release"** |
 | OPERATE | Not started | automatic after approved release |
 
@@ -455,47 +455,118 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] UDISE Import + PEN Import (Condition 4)
 - [x] New PEN resulting in `ND`
 - [x] `ND` later becoming an actual PEN (reconciliation)
-- [ ] Already-GREEN row is skipped
-- [ ] Duplicate search results → manual review, not auto-pick
-- [ ] Wrong-student search result → identity check blocks it
-- [ ] UDISE validation failure
-- [ ] PEN validation failure
-- [ ] Session timeout → pause + resume from checkpoint
-- [ ] Browser crash → DB state persisted, re-verify before repeating
-- [ ] Save succeeded but confirmation not seen → verify state, don't repeat
+- [ ] Already-GREEN row is skipped — not built: no condition engine
+      currently checks "is this row already GREEN?" before running;
+      batch-level skip-logic for already-complete rows is not
+      implemented (spec §264).
+- [x] Duplicate search results → manual review, not auto-pick —
+      `match_nd_candidate()` / `AMBIGUOUS_MANUAL_REVIEW`, tested
+      (`test_ambiguous_match_routes_to_manual_review_without_writing_sheet`)
+- [x] Wrong-student search result → identity check blocks it —
+      `StudentIdentityMismatchError`, tested
+      (`test_generate_release_request_rejects_identity_mismatch`)
+- [ ] UDISE validation failure — `validate_student()` exists and is
+      called by every condition engine, but has no dedicated failure-path
+      unit test in isolation.
+- [ ] PEN validation failure — same as above.
+- [ ] Session timeout → pause + resume from checkpoint — the "pause and
+      classify" half exists (`RecoverableAutomationError`,
+      `tests/unit/test_resilience.py`); "resume from a persisted
+      checkpoint" does not — `workflow_runs.checkpoint_json` exists in
+      the schema but nothing writes or reads it yet.
+- [ ] Browser crash → DB state persisted, re-verify before repeating —
+      `BrowserOrNetworkFailureError` detects and diagnoses the crash;
+      "re-verify before repeating" as an actual retry flow is not built.
+- [ ] Save succeeded but confirmation not seen → verify state, don't
+      repeat — the underlying principle (never treat an unverified
+      action as success) is enforced everywhere via
+      `ConsequentialActionUnverifiedError`, but there is no dedicated
+      retry-without-repeating flow built on top of it yet.
 - [ ] Spreadsheet update failure after portal success → recovery path,
-      never repeat the portal action
-- [ ] File upload failure
-- [ ] Dependent dropdown delay
-- [ ] Manual consent checkpoint (Aadhaar)
-- [ ] Manual review path end-to-end (open → action → resolve)
-- [ ] Resume after interruption
+      never repeat the portal action — `MockSheetsRepository` can
+      simulate this (`simulate_write_failure`) but no engine-level
+      recovery test exercises "portal already succeeded, only retry the
+      sheet write" end-to-end.
+- [ ] File upload failure — no file-upload functionality is implemented
+      at all yet (not reached by any condition built so far).
+- [ ] Dependent dropdown delay — no explicit wait-for-dependent-option
+      handling beyond Playwright's own default actionability waits.
+- [x] Manual consent checkpoint (Aadhaar) — structurally can never
+      auto-click "I Agree", tested
+      (`test_aadhaar_consent_pauses_and_is_never_auto_clicked`)
+- [ ] Manual review path end-to-end (open → action → resolve) — reaching
+      `MANUAL_REVIEW` is tested (ND reconciliation's ambiguous case); the
+      resolve side (`PEN_MANUAL_ACTION_COMPLETED` → `PEN_RESOLVED` after
+      a human acts) has no dedicated test yet.
+- [ ] Resume after interruption — not built (depends on the same
+      checkpoint-persistence gap as "Session timeout" above).
 
 ## Acceptance criteria (spec §287 — "fills forms" is not "done")
 
-- [ ] Correct student selection (multi-attribute identity check)
-- [ ] Correct class routing (Satyam School ID vs Block ID)
-- [ ] Correct entry-condition routing (1-4)
-- [ ] Correct field mapping (no silent misalignment)
-- [ ] Correct dependent-dropdown handling
-- [ ] Safe file uploads
-- [ ] Visible/headed browser operation (never headless for the government
-      portal without explicit authorized exception)
-- [ ] Verified portal completion before any business-state write
-- [ ] Correct GREEN behavior (whole row, only when verified)
-- [ ] OGR row-color preservation (never turns green from gov-entry)
-- [ ] Correct `ND` semantics (success, not failure)
-- [ ] Reliable sheet synchronization
-- [ ] Retry/resume correctness
-- [ ] Manual review flow works end-to-end
-- [ ] Logging meets RULEBOOK.md §L bar (diagnosable without asking the
-      operator to describe internals)
-- [ ] No credential hardcoding
-- [ ] No fabricated data (bank `NA`, no invented PEN, etc.)
-- [ ] No blind duplicate submissions (transfer requests, PEN init, etc.)
-- [ ] `MOCK_SUCCESS` can never be written as `LIVE_VERIFIED_SUCCESS`, or
+- [x] Correct student selection (multi-attribute identity check) —
+      `validate_student()` + `StudentIdentityMismatchError`, tested
+- [x] Correct class routing (Satyam School ID vs Block ID) —
+      `determine_id_track()`, 9 unit tests covering every listed class
+      (`tests/unit/test_routing.py`, added while auditing this checklist
+      — the existing integration tests only ever exercised the BLOCK_ID
+      branch, since every demo/test student uses "LKG/KG1/PP2")
+- [ ] Correct entry-condition routing (1-4) — each condition is correct
+      *once selected*, but there is no automated function that inspects
+      a student's sheet state and picks Condition 1/2/3/4 for the
+      caller; the GUI's demo dataset hardcodes which condition applies
+      to each sample student, and the engine layer expects the caller to
+      already know which `Condition*Engine` to instantiate. This is a
+      real, currently-unclosed gap — not merely an unchecked box.
+- [x] Correct field mapping (no silent misalignment) —
+      `field_mapping.py`, exercised end-to-end in every condition test
+      (exact values asserted, not just "no exception")
+- [ ] Correct dependent-dropdown handling — no distinct handling beyond
+      default Playwright waits; not separately verified.
+- [ ] Safe file uploads — no file-upload functionality exists yet.
+- [x] Visible/headed browser operation (never headless for the government
+      portal without explicit authorized exception) — every launch site
+      (adapters' own tests, `run_worker.py`, both GUI batch workers)
+      calls `chromium.launch(headless=False)` explicitly; watched real
+      browser windows open during GUI verification.
+- [x] Verified portal completion before any business-state write — the
+      `_verify_visible()`/`ConsequentialActionUnverifiedError` pattern
+      used by every branch, tested directly
+      (`test_verification_failure_raises_rather_than_assuming_success`)
+- [x] Correct GREEN behavior (whole row, only when verified) — tested in
+      every Condition 1/3 integration test
+- [x] OGR row-color preservation (never turns green from gov-entry) —
+      explicitly asserted in `test_condition1_engine.py`
+- [x] Correct `ND` semantics (success, not failure) — tested throughout
+      (Condition 1/3 accept PEN=ND as `COMPLETE`; `is_actual_pen()`
+      never treats `NA`/`ND` as a real PEN)
+- [ ] Reliable sheet synchronization — no distinct synchronization
+      mechanism beyond direct read/write calls; not separately verified.
+- [ ] Retry/resume correctness — no retry/resume mechanism is built yet
+      (same gap as "Session timeout"/"Resume after interruption" above).
+- [ ] Manual review flow works end-to-end — see the matching item above.
+- [x] Logging meets RULEBOOK.md §L bar (diagnosable without asking the
+      operator to describe internals) — structured JSON logging with
+      session correlation, secret redaction, and `diagnostic_id`s
+      throughout; 6 dedicated tests including a deliberately-triggered
+      failure (`tests/unit/test_diagnostics.py`)
+- [x] No credential hardcoding — every credential comes from
+      `Settings`/`.env`; fixture/test values are clearly-fake literals
+      ("not-a-real-password", "mock-password"), never real secrets
+- [x] No fabricated data (bank `NA`, no invented PEN, etc.) —
+      `is_actual_pen()` only accepts a genuine 11-digit value; bank
+      fields are simply not implemented (never populated with a
+      fabricated placeholder either)
+- [ ] No blind duplicate submissions (transfer requests, PEN init,
+      etc.) — `MockSheetsRepository` prevents duplicate *sheet writes*
+      (tested), but no engine-level test proves duplicate-*submission*
+      protection at the portal-interaction level (matches "Duplicate-
+      request protection" being unchecked in both mock-scenario
+      checklists above).
+- [x] `MOCK_SUCCESS` can never be written as `LIVE_VERIFIED_SUCCESS`, or
       cause a real spreadsheet write, or a claim of government completion
-      (decision 2026-09-25)
+      (decision 2026-09-25) — see step 12's note: structurally enforced
+      via the mandatory `environment` field and `GoogleSheetsRepository`
+      raising `NotImplementedError` until the Live Verification Gate.
 
 ## Backlog / explicitly deferred (not invented as scope — RULEBOOK.md §J14)
 
@@ -521,6 +592,19 @@ LIVE CREDENTIALS: NOT CONFIGURED
 
 ## Next trigger
 
-PLANNING is approved. Awaiting **"approve design"** to close DESIGN FIXED,
-or specific edit requests against DB-DESIGN.md / IMPL-SPEC.md /
-SECURITY-THREAT-MODEL.md first.
+**Stopped at the Live Verification Gate (2026-09-25)** — see the report
+template above ("Live Verification Gate" section) for the exact status.
+The mock-first build order (steps 1-16) is complete; step 17 itself
+(controlled live verification) requires the user present, real
+credentials configured, and explicit authorization — none of which are
+in scope for this session per the mock-first decision.
+
+Awaiting one of:
+- **"run tests" / "test it"** — to formally close the TESTING gate (the
+  underlying tests already pass; this trigger is about the governance
+  gate, not re-running pytest).
+- Real Google Sheets / Gujarat UDISE / National UDISE+ credentials, to
+  begin L1-L4 controlled live verification per the phase sequence above.
+- Specific follow-up work against any item left unchecked in the mock
+  scenario checklist / testing matrix / acceptance criteria above (all
+  explicitly and honestly marked, not silently skipped).

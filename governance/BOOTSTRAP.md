@@ -104,5 +104,21 @@ No production code exists yet — correct for PLANNING phase (RULEBOOK.md
 
 ## Next trigger
 
-CODING is in progress. Say **"run tests" / "test it"** once enough of the
-build order is complete to move to TESTING.
+**CODING's mock-first build order is complete (2026-09-25, TODO.md steps
+1-16)** — all four entry conditions, PEN Request Sent/View Sent Request,
+ND Reconciliation, the cross-portal approval batch flow, a generic
+session/timeout/crash recovery layer, a dedicated UI-change resilience
+test pass, the full PySide6 GUI (wired to the real engine, not mocked
+views), and PyInstaller packaging (verified by actually launching the
+built `.exe`). 60/60 tests passing. Stopped at the Live Verification Gate
+(step 17) — see TODO.md's "Live Verification Gate" section for the exact
+report template and status, and TODO.md's testing matrix/acceptance
+criteria for an honest, item-by-item account of what remains open (a few
+things do: automated Condition 1-4 routing from sheet state, checkpoint-
+based resume-after-interruption, and the "successful/Dropbox" outcome for
+either portal's Import workflow — all explicitly marked, none silently
+skipped).
+
+Say **"run tests" / "test it"** to formally close the TESTING gate, or
+supply real credentials to begin the Live Verification Gate's L1-L4
+phases.
