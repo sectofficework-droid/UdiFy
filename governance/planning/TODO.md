@@ -277,7 +277,41 @@ and mocked/fixture portal pages as the primary implementation target.
     methods now route through this wrapper (renamed their bodies to
     `_run_impl()`). 5 new unit tests
     (`tests/unit/test_resilience.py`). 48/48 tests project-wide.
-14. PySide6 GUI screens (UI-SPEC.md §B.1), wired to the engine.
+14. [x] PySide6 GUI screens (UI-SPEC.md §B.1), wired to the engine —
+    `src/app/`: `main.py` (entry point), `app_context.py` (`AppContext`:
+    settings/DB/sheets repository; in MOCK mode seeds 5 clearly-labeled
+    demo students spanning Conditions 1-4 + one ND case, so the app has
+    something to show without Google Sheets access — never written to
+    `students`/`request_cases` unless a run actually processes it),
+    `theme.py` (navy+orange QSS from UI-SPEC.md §B.2), `main_window.py`
+    (sidebar nav + `QStackedWidget`), `widgets.py` (status chips, stat
+    tiles), `run_worker.py` (a `QThread` that opens its own SQLite
+    connection — Python's sqlite3 connections aren't thread-safe to share
+    — and drives the same fixture-backed adapters the integration tests
+    use, in a visible/never-headless browser). All 8 required screens
+    built and wired to real data (not mocked views): Batch Queue, Run &
+    Progress (runs a real `Condition*Engine` in the background thread;
+    the state-machine "stepper" is populated from the actual
+    `pen_case_events` audit trail, not simulated), Approval Monitoring
+    (runs the real `run_batch_status_check()`), Approval History (real
+    `pen_case_events` query, filter, CSV/XLSX export via `openpyxl`), ND
+    Reconciliation (runs the real `run_nd_reconciliation()`),
+    Diagnostics, Automation Coverage (verbatim from UI-SPEC.md §B.5),
+    Settings (read-only — editing credentials through the GUI is
+    deliberately deferred to the Live Verification Gate). Verified
+    working, not just "should work": launched the real app, drove a full
+    Condition 1 run and a Condition 4 run through the actual UI (clicking
+    Run, watching the background thread, confirming the resulting
+    `pen_case_events`/`request_cases` rows appear correctly in Run &
+    Progress / Approval History / Approval Monitoring, then ran the
+    "Check all pending" batch action and watched it classify a real
+    Gujarat transfer-request row as STILL_PENDING against the fixture),
+    with screenshots reviewed at each step — this caught and fixed
+    several real Qt layout bugs (column widths too narrow for chip text,
+    row heights not accounting for chip padding) before calling it done.
+    1 new smoke test (`tests/unit/test_app_smoke.py`: constructs
+    `AppContext` + `MainWindow`, visits every screen, asserts no
+    exception). 49/49 tests project-wide.
 15. UI-change resilience test pass (spec §10464-10483) before any batch
     scaling — selector fallback tests against deliberately altered mocked
     pages.
