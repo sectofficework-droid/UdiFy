@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>National UDISE+ — Mock Fixture (New PEN Entry)</title>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="screen-login">
+  <label for="username">Username</label>
+  <input id="username" type="text">
+  <label for="password">Password</label>
+  <input id="password" type="password">
+  <button id="login-btn" type="button">Login</button>
+</section>
+
+<!-- ===================== INITIALIZE NEW STUDENT ===================== -->
+<section id="screen-init" hidden>
+  <label for="init-class">Class</label>
+  <select id="init-class">
+    <option value="">--</option>
+    <option value="lkg">LKG/KG1/PP2</option>
+  </select>
+
+  <label for="init-section">Section</label>
+  <select id="init-section">
+    <option value="">--</option>
+    <option value="a">A</option>
+  </select>
+
+  <label for="init-name">Student Name</label>
+  <input id="init-name" type="text">
+
+  <button type="button" id="add-new-student-btn">Add New Student</button>
+
+  <div id="init-success" hidden>
+    <p>The Student has been initialised/Saved Successfully.</p>
+    <button type="button" id="fill-general-profile-btn">Fill General Profile</button>
+  </div>
+</section>
+
+<!-- ===================== GENERAL PROFILE ===================== -->
+<section id="screen-general" hidden>
+  <label for="guardian-name">Guardian's Name</label>
+  <input id="guardian-name" type="text">
+
+  <label for="mother-tongue">Mother Tongue of Student</label>
+  <input id="mother-tongue" type="text">
+
+  <button type="button" id="general-next-btn">Next</button>
+
+  <!-- Consent dialog: only shown if the fixture is toggled to require it -->
+  <div id="consent-dialog" hidden>
+    <p>CONSENT FOR DEMOGRAPHIC AUTHENTICATION</p>
+    <button type="button" id="i-agree-btn">I Agree</button>
+  </div>
+</section>
+
+<!-- ===================== ENROLMENT PROFILE ===================== -->
+<section id="screen-enrolment" hidden>
+  <label for="admission-no">Admission Number in Present School</label>
+  <input id="admission-no" type="text">
+
+  <button type="button" role="button" aria-label="Next" id="enrolment-next-btn">Next</button>
+</section>
+
+<!-- ===================== FACILITY PROFILE ===================== -->
+<section id="screen-facility" hidden>
+  <label for="height">Student's Height (in CMS)</label>
+  <input id="height" type="text">
+
+  <label for="weight">Student's Weight (in KGS)</label>
+  <input id="weight" type="text">
+
+  <button type="button" role="button" aria-label="Next" id="facility-next-btn">Next</button>
+</section>
+
+<!-- ===================== PROFILE PREVIEW ===================== -->
+<section id="screen-preview" hidden>
+  <p>Data completion is complete.</p>
+  <button type="button" id="okay-btn">Okay</button>
+</section>
+
+<script>
+  var REQUIRE_CONSENT = new URLSearchParams(window.location.search).get('consent') === '1';
+
+  function show(id) {
+    document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
+    document.getElementById(id).hidden = false;
+  }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    show('screen-init');
+  });
+
+  document.getElementById('add-new-student-btn').addEventListener('click', function () {
+    document.getElementById('init-success').hidden = false;
+  });
+
+  document.getElementById('fill-general-profile-btn').addEventListener('click', function () {
+    show('screen-general');
+  });
+
+  document.getElementById('general-next-btn').addEventListener('click', function () {
+    if (REQUIRE_CONSENT && document.getElementById('consent-dialog').hidden) {
+      document.getElementById('consent-dialog').hidden = false;
+      return; // do NOT advance — the real portal blocks here until consent
+    }
+    show('screen-enrolment');
+  });
+
+  document.getElementById('i-agree-btn').addEventListener('click', function () {
+    document.getElementById('consent-dialog').hidden = true;
+    show('screen-enrolment');
+  });
+
+  document.getElementById('enrolment-next-btn').addEventListener('click', function () {
+    show('screen-facility');
+  });
+
+  document.getElementById('facility-next-btn').addEventListener('click', function () {
+    show('screen-preview');
+  });
+
+  document.getElementById('okay-btn').addEventListener('click', function () {
+    document.getElementById('screen-preview').innerHTML = '<p>Back to Student Dashboard</p>';
+  });
+</script>
+</body>
+</html>

@@ -66,24 +66,80 @@ and mocked/fixture portal pages as the primary implementation target.
    workflow engine.
 5. Browser/session manager (Playwright, headed) — built to run against
    mocked/fixture pages first.
-6. `GujaratUDISEPortalAdapter` interface + mocked pages covering the 14
-   Gujarat scenarios (master spec decision §4) — UDISE New-entry branch
-   (Condition 1's UDISE half).
-7. `NationalUDISEPortalAdapter` interface + mocked pages covering the New
-   PEN scenarios among the 32 National scenarios (master spec decision
-   §4) — Condition 1's PEN half, completing Condition 1 end-to-end
-   against mocks.
+6. [~] `GujaratUDISEPortalAdapter` — `src/portals/base.py` (shared
+   PortalName/exceptions incl. `AutomationPausedForUser`,
+   `UnknownPortalStateError`, `ConsequentialActionUnverifiedError`) +
+   `src/portals/udise_gujarat/adapter.py`: New Entry (login, manual birth
+   route, CTS details, generic label-driven tab fill/save for
+   Personal/Education/Bank/Scholarship & Facility/Health & CWSN) and
+   Import/transfer-request (search by UID, confirm transfer, verify
+   success message) — spec §W/§X. Every selector is role/label/exact-text
+   based, never CSS/ID (spec Final Authority §B). Verified against a real
+   local Playwright session driving an HTML fixture
+   (`tests/fixtures/gujarat_udise/new_entry.html`,
+   `tests/integration/test_gujarat_adapter.py`) — not just unit-tested in
+   isolation. 2 real bugs found and fixed by this: (1) `Locator.is_visible()`
+   doesn't poll/wait in Playwright, only `expect(...).to_be_visible()`
+   does — verified against the installed API before relying on it; (2)
+   `get_by_text()` does case-insensitive substring matching by default,
+   so "Student New Entry" ambiguously matched both a button and an
+   all-caps heading — fixed with `exact=True` throughout. Open item
+   flagged inline: the spec confirms Personal tab's save button is
+   literally "SAVE STUDENT" (§25) but doesn't confirm whether the other 4
+   tabs use identical text — `save_current_tab()` takes the button name
+   as a parameter rather than assuming, pending live-DOM verification.
+   14 Gujarat mock scenarios (decision §4) — only New Entry + transfer-
+   request-submission covered so far; Import outcome detection, session
+   expiry/timeout/unknown-state/duplicate-protection scenarios remain.
+7. [x] `NationalUDISEPortalAdapter` — `src/portals/udise_plus/adapter.py`:
+   New PEN Entry (initialize student — verifies the exact confirmed
+   success text; General/Enrolment/Facility Profile fill, label-driven
+   like the Gujarat tabs; Profile Preview — verifies the exact "Data
+   completion is complete." text) — spec §37-53/§164/§Y. Condition 1 is
+   now feasible end-to-end against mocks/fixtures (Gujarat New Entry +
+   National New PEN Entry both real, both fixture-tested). Also
+   implemented the confirmed **PEN Import — Other School ACTIVE**
+   workflow (DB-DESIGN.md §C.3a) in the same adapter: Aadhaar-
+   availability check (`EXISTING_STUDENT_FOUND_BY_AADHAAR` business-
+   routing signal, never a technical error), `View Details` →
+   `Track By Details` (exact screen name preserved), Global Student
+   Search by PEN, HOS Details capture. **Aadhaar consent is structurally
+   never auto-clicked** — `check_aadhaar_consent_required()` only
+   detects and returns, the adapter has no method that clicks "I Agree";
+   proven by a dedicated integration test that toggles a fixture into
+   requiring consent and asserts the page genuinely didn't advance.
+   Fixture: `tests/fixtures/udise_plus/new_pen_entry.html`, tests:
+   `tests/integration/test_national_udise_adapter.py` (2/2 passing, no
+   selector bugs this time — applied the `exact=True` +
+   `expect().to_be_visible()` lessons from step 6 from the start).
+   PEN Import successful/Dropbox outcome and the remaining 32-scenario
+   list (session expiry, timeout, etc.) are not yet covered.
 8. UDISE Import / transfer-request branch (Condition 2/4's UDISE half) —
    mocked scenarios: other-school student found, transfer confirmation,
    `REQUEST SENT`, pending request, duplicate-request protection.
-9. PEN Import/Other-State branch (Condition 2/3's PEN half, DB-DESIGN.md
-   §C.3a) — mocked scenarios: Aadhaar already registered, `View Details`,
-   `Track By Details`, Global Student Search, Student Status = `ACTIVE`,
-   HOS Details, `IMPORT PENDING`.
+9. [~] PEN Import/Other-State branch (Condition 2/3's PEN half,
+   DB-DESIGN.md §C.3a) — adapter methods done (see step 7 above); not yet
+   wired into a workflow-engine-level state machine or SQLite event
+   trail (that's `src/engine/`, not yet built) — mocked scenarios still
+   open: `IMPORT PENDING` sheet write verification, ambiguous-match/no-
+   result/details-unavailable failure paths.
 9a. PEN Request Sent (Student Release Request generation, DB-DESIGN.md
     §C.3b) + View Sent Request (§C.3c) — mocked scenarios: release
     confirmation dialog, Request No capture, `Pending at Destination`,
     Student Details modal.
+5-7. [x] **Condition 1 complete end-to-end** — `src/engine/condition1.py`
+    (`Condition1Engine`), `src/engine/field_mapping.py` (sheet-row ->
+    portal-field mapping; one assumption flagged: UDISE sheet's single
+    "Birth City" column stands in for the portal's separate Taluka/
+    Village fields, pending live-DOM verification), `src/engine/
+    routing.py` (class -> ID-track). Added `GujaratUDISEPortalAdapter.
+    read_generated_uid()` (spec §21). Full pipeline test
+    (`tests/integration/test_condition1_engine.py`) matches the decision
+    document's acceptance diagram: Mock Sheet -> Engine -> real
+    fixture-driven Gujarat + National adapters -> SQLite audit trail (3
+    chained, hash-verified `pen_case_events`) -> spreadsheet verification
+    (UDISE GREEN+UID, PEN GREEN+ND, OGR UID updated but color unchanged
+    per spec §4.4/§128.4). Passed first run. 29/29 tests project-wide.
 10. ND reconciliation branch (separate, explicit trigger) — mocked
     scenarios: actual PEN discovered, PEN remains unavailable.
 11. Approval/status-check batch flow across both portals + Status-Changed

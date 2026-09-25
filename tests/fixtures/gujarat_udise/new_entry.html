@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gujarat UDISE — Mock Fixture (New Entry)</title>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<section id="screen-login">
+  <label for="school-code">School Code</label>
+  <input id="school-code" type="text">
+  <label for="password">Password</label>
+  <input id="password" type="password">
+  <button id="login-btn" type="button">LOG IN</button>
+</section>
+
+<!-- ===================== HOME / NAV ===================== -->
+<section id="screen-home" hidden>
+  <span>Home</span>
+  <button type="button" id="nav-manage-students">Manage Students</button>
+  <button type="button" id="nav-student-new-entry" hidden>Student New Entry</button>
+</section>
+
+<!-- ===================== NEW ENTRY: MANUAL BIRTH ===================== -->
+<section id="screen-new-entry" hidden>
+  <h2>STUDENT NEW ENTRY</h2>
+
+  <label for="birth-state">Birth State</label>
+  <select id="birth-state">
+    <option value="">--</option>
+    <option value="odisha">Odisha</option>
+  </select>
+
+  <label for="birth-district">Birth District</label>
+  <select id="birth-district">
+    <option value="">--</option>
+    <option value="ganjam">GANJAM</option>
+  </select>
+
+  <label for="birth-taluka">Birth Taluka</label>
+  <select id="birth-taluka">
+    <option value="">--</option>
+    <option value="sheragada">SHERAGADA</option>
+  </select>
+
+  <label for="birth-city">Birth City/Place</label>
+  <input id="birth-city" type="text">
+
+  <label for="birth-village">Birth Village</label>
+  <input id="birth-village" type="text">
+
+  <label for="birth-year">Birth Year</label>
+  <select id="birth-year">
+    <option value="">--</option>
+    <option value="2022">2022</option>
+  </select>
+
+  <label for="birth-month">Birth Month</label>
+  <select id="birth-month">
+    <option value="">--</option>
+    <option value="january">January</option>
+  </select>
+
+  <label for="birth-date">Birth Date</label>
+  <select id="birth-date">
+    <option value="">--</option>
+    <option value="02">02</option>
+  </select>
+
+  <label for="brn-no">Birth Certificate No.</label>
+  <input id="brn-no" type="text">
+
+  <button type="button" id="birth-next-btn">Next</button>
+</section>
+
+<!-- ===================== CTS DETAILS ===================== -->
+<section id="screen-cts" hidden>
+  <label for="cts-student-name">Student Name</label>
+  <input id="cts-student-name" type="text">
+
+  <label for="cts-father-name">Father's Name</label>
+  <input id="cts-father-name" type="text">
+
+  <label for="cts-mother-name">Mother's Name</label>
+  <input id="cts-mother-name" type="text">
+
+  <label for="cts-surname">Surname</label>
+  <input id="cts-surname" type="text">
+
+  <label for="cts-dob">Date of Birth</label>
+  <input id="cts-dob" type="text">
+
+  <label for="cts-disabled">Whether child is disabled</label>
+  <select id="cts-disabled">
+    <option value="No">No</option>
+    <option value="Yes">Yes</option>
+  </select>
+
+  <button type="button" id="add-new-student-btn">ADD NEW STUDENT</button>
+</section>
+
+<!-- ===================== MANAGE STUDENTS LIST ===================== -->
+<section id="screen-list" hidden>
+  <div id="student-list"></div>
+</section>
+
+<!-- ===================== STUDENT PROFILE ===================== -->
+<section id="screen-profile" hidden>
+  <div role="tablist">
+    <button type="button" role="tab" aria-label="Personal">Personal</button>
+    <button type="button" role="tab" aria-label="Education">Education</button>
+    <button type="button" role="tab" aria-label="Bank">Bank</button>
+  </div>
+
+  <div id="tab-personal">
+    <label for="p-mother-tongue">Mother Tongue</label>
+    <input id="p-mother-tongue" type="text">
+
+    <label for="p-category">Category</label>
+    <input id="p-category" type="text">
+
+    <button type="button" role="button" aria-label="SAVE STUDENT" id="save-personal-btn">SAVE STUDENT</button>
+    <div id="save-success" hidden>Student saved successfully.</div>
+  </div>
+</section>
+
+<script>
+  function show(id) {
+    document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
+    document.getElementById(id).hidden = false;
+  }
+
+  document.getElementById('login-btn').addEventListener('click', function () {
+    show('screen-home');
+  });
+
+  document.getElementById('nav-manage-students').addEventListener('click', function () {
+    document.getElementById('nav-student-new-entry').hidden = false;
+  });
+
+  document.getElementById('nav-student-new-entry').addEventListener('click', function () {
+    show('screen-new-entry');
+  });
+
+  document.getElementById('birth-next-btn').addEventListener('click', function () {
+    show('screen-cts');
+  });
+
+  document.getElementById('add-new-student-btn').addEventListener('click', function () {
+    var name = document.getElementById('cts-student-name').value;
+    var uid = '24224100067' + String(Math.floor(1000000 + Math.random() * 8999999));
+    var el = document.createElement('div');
+    el.className = 'student-row';
+    el.setAttribute('data-uid', uid);
+
+    var nameSpan = document.createElement('span');
+    nameSpan.textContent = name;
+    nameSpan.addEventListener('click', function () { show('screen-profile'); });
+    el.appendChild(nameSpan);
+
+    var uidSpan = document.createElement('span');
+    uidSpan.className = 'uid-cell';
+    uidSpan.textContent = uid;
+    el.appendChild(uidSpan);
+
+    document.getElementById('student-list').appendChild(el);
+    show('screen-list');
+  });
+
+  document.getElementById('save-personal-btn').addEventListener('click', function () {
+    document.getElementById('save-success').hidden = false;
+  });
+</script>
+</body>
+</html>

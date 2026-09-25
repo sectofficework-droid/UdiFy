@@ -58,13 +58,15 @@ No production code exists yet — correct for PLANNING phase (RULEBOOK.md
 
 ## Git state
 
-- Repo initialized this session (`git init`), on `master`, no commits yet.
-- Remote `origin` added this session:
-  `https://github.com/sectofficework-droid/UdiFy.git` (fetch+push
-  configured; nothing pushed — nothing has been committed yet either).
-- Staged/committed status: **staged, not committed** — user has not asked
-  for a commit (RULEBOOK.md §A9). User must trigger the commit explicitly,
-  and pushing needs its own explicit ask after that.
+- Repo initialized this session (`git init`); remote `origin` =
+  `https://github.com/sectofficework-droid/UdiFy.git`.
+- Git identity configured by the user themselves (not by the AI session —
+  updating git config is an absolute "never" for this session):
+  `bkdebiprasaddas-blip <bkdebiprasaddas@gmail.com>`.
+- **Committed and pushed** — user said "push" (with nothing committed yet,
+  the only sensible reading was commit-then-push); root commit `66faf93`
+  on `master`, tracking `origin/master`. 43 files, the full governance
+  scaffold + build-order steps 1-4 (config/DB/Sheets adapter/diagnostics).
 - `.gitignore` confirmed to exclude `Scratch/`, `.env*`, `credentials/`,
   `*.sqlite3`, build artifacts, etc. — verified `Scratch/` does not even
   appear in `git status --short` output.
