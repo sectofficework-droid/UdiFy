@@ -340,7 +340,28 @@ and mocked/fixture portal pages as the primary implementation target.
     `get_by_role("button", ...)` / `get_by_role("heading", ...)` — a more
     correct selector than plain text matching regardless of the
     capitalization question. 51/51 tests project-wide.
-16. Package with PyInstaller.
+16. [x] Package with PyInstaller — `installer.spec` at the repo root,
+    entry point `run_udify.py` (thin wrapper around
+    `src.app.main.main()`). Bundles Playwright's package data (its own
+    bundled PyInstaller hook covers most of it; the spec also explicitly
+    `collect_data_files`s it as insurance) and the two MOCK fixture pages
+    the GUI's demo dataset needs (`src/app/mock_fixtures.py` new module —
+    resolves them via `sys._MEIPASS` when frozen, `tests/fixtures/`
+    directly otherwise; `run_worker.py` and the two screens that
+    previously computed this path themselves now share it). Deliberately
+    does **not** bundle a Chromium binary — the target machine runs
+    `playwright install chromium` once, same as development (would
+    otherwise add several hundred MB for no benefit before Live
+    Verification even runs). Verified by actually building
+    (`pyinstaller installer.spec`) and launching the resulting
+    `dist/UdiFy/UdiFy.exe` standalone — confirmed the GUI renders
+    correctly (screenshotted) and its SQLite/diagnostics files are
+    created — not just that the build step exits 0. SETUP-GUIDE.md and
+    RELEASE-PLAN.md updated with the real, verified build/run steps
+    (SETUP-GUIDE.md was still marked "skeleton, nothing built yet" from
+    the PLANNING phase — now rewritten top to bottom to match reality).
+    51/51 tests still passing (packaging touched only import paths, not
+    engine/adapter logic).
 17. **Stop at the Live Verification Gate** — see checklist below. Do not
     proceed to real credential configuration or controlled live
     verification without it, and do not report credentials as a blocker

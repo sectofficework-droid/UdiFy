@@ -5,8 +5,6 @@ Changed (the Status-Changed manual review queue)."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QHeaderView,
@@ -21,15 +19,12 @@ from PySide6.QtWidgets import (
 from playwright.sync_api import sync_playwright
 
 from src.app.app_context import AppContext
+from src.app.mock_fixtures import GUJARAT_FIXTURE, NATIONAL_FIXTURE
 from src.app.widgets import status_chip, screen_header
 from src.db.connection import connect
 from src.engine.approval_batch import run_batch_status_check
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
-
-_FIXTURES_ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures"
-GUJARAT_FIXTURE = _FIXTURES_ROOT / "gujarat_udise" / "new_entry.html"
-NATIONAL_FIXTURE = _FIXTURES_ROOT / "udise_plus" / "new_pen_entry.html"
 
 _OPEN_CASE_QUERY = """
     SELECT request_case_id, student_id, case_type, portal, request_type,

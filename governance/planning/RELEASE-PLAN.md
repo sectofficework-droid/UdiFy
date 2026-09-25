@@ -30,9 +30,30 @@
 
 ## Build
 
-- Packaging: PyInstaller → single Windows `.exe` (spec §AE/§76).
-- Dependency pinning: `requirements.txt` (or `pyproject.toml`) with exact
-  versions, created at CODING setup — TBD until then.
+- Packaging: PyInstaller → Windows one-folder build (spec §AE/§76) — done
+  2026-09-25 (TODO.md step 16). `installer.spec` at the repo root; build
+  with `pyinstaller installer.spec` from an activated venv. Entry point
+  is `run_udify.py` (thin wrapper around `src.app.main.main()`). Output
+  is `dist/UdiFy/` (an `UdiFy.exe` plus an `_internal/` support folder) —
+  copy the whole folder, not just the `.exe`, to the target machine.
+  Verified by actually launching the built `.exe` (not just running the
+  build step) and confirming the GUI renders and its SQLite/diagnostics
+  files are created correctly.
+- **Chromium is not bundled.** The spec bundles Playwright's own driver
+  (`playwright.utils.hooks.collect_data_files`) but deliberately does not
+  bundle a full Chromium browser build (would add several hundred MB for
+  no benefit before Live Verification even runs). The target machine
+  needs `playwright install chromium` run once — same requirement as
+  development, see SETUP-GUIDE.md.
+- The two MOCK fixture pages the GUI's demo dataset drives in MOCK mode
+  are bundled as data files (`fixtures/gujarat_udise/new_entry.html`,
+  `fixtures/udise_plus/new_pen_entry.html`) so the packaged app's Batch
+  Queue/ND Reconciliation/Approval Monitoring screens keep working
+  out of the box; `src/app/mock_fixtures.py` resolves their path via
+  `sys._MEIPASS` when frozen, the source tree's `tests/fixtures/` path
+  otherwise.
+- Dependency pinning: `requirements.txt`, exact versions (done at CODING
+  setup, TODO.md step 1).
 - Build reproducibility / artifact identification (RULEBOOK.md §J15G/§J16):
   TBD — recommend embedding a build/version identifier the diagnostics
   system can report (spec §H "automation build/version").

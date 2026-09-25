@@ -4,8 +4,6 @@ reconciliation results."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -20,13 +18,11 @@ from PySide6.QtWidgets import (
 from playwright.sync_api import sync_playwright
 
 from src.app.app_context import AppContext
+from src.app.mock_fixtures import NATIONAL_FIXTURE
 from src.app.widgets import screen_header
 from src.db.connection import connect
 from src.engine.nd_reconciliation import run_nd_reconciliation
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
-
-_FIXTURES_ROOT = Path(__file__).resolve().parents[3] / "tests" / "fixtures"
-NATIONAL_FIXTURE = _FIXTURES_ROOT / "udise_plus" / "new_pen_entry.html"
 
 
 class _NdReconciliationWorker(QThread):

@@ -12,12 +12,11 @@ operation" acceptance criterion.
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from PySide6.QtCore import QThread, Signal
 from playwright.sync_api import sync_playwright
 
 from src.app.app_context import AppContext, DemoStudentEntry
+from src.app.mock_fixtures import GUJARAT_FIXTURE, NATIONAL_FIXTURE
 from src.db.connection import connect
 from src.engine.condition1 import Condition1Engine
 from src.engine.condition2 import Condition2Engine
@@ -27,11 +26,6 @@ from src.engine.resilience import BrowserOrNetworkFailureError, RecoverableAutom
 from src.portals.base import AutomationPausedForUser, PortalError
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
-
-_FIXTURES_ROOT = Path(__file__).resolve().parents[2] / "tests" / "fixtures"
-GUJARAT_FIXTURE = _FIXTURES_ROOT / "gujarat_udise" / "new_entry.html"
-NATIONAL_FIXTURE = _FIXTURES_ROOT / "udise_plus" / "new_pen_entry.html"
-
 
 class RunWorker(QThread):
     progress = Signal(str)
