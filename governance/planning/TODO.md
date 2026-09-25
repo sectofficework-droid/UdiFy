@@ -144,10 +144,35 @@ and mocked/fixture portal pages as the primary implementation target.
    "Student PEN") legitimately repeat across different real portal
    screens. `IMPORT PENDING` sheet-write verification covered;
    ambiguous-match/no-result/details-unavailable failure paths remain.
-9a. PEN Request Sent (Student Release Request generation, DB-DESIGN.md
-    §C.3b) + View Sent Request (§C.3c) — mocked scenarios: release
-    confirmation dialog, Request No capture, `Pending at Destination`,
-    Student Details modal. Not yet started.
+9a. [x] PEN Request Sent (Student Release Request generation, DB-DESIGN.md
+    §C.3b) + View Sent Request (§C.3c) — `NationalUDISEPortalAdapter`:
+    `get_student_release_details()` (Get Details + identity fields, spec
+    step 3), `submit_release_admission_detail()` (step 4),
+    `generate_release_request()` (confirmation dialog -> Confirm -> success
+    message -> Request No. capture, steps 5-7), `open_sent_requests()` /
+    `find_sent_request()` (confirmed column order: S.No., Request No./PEN,
+    Requested By, Requested To, Closed/Auto Closed By, Request Status,
+    Action) / `open_sent_request_student_details()` (student snapshot,
+    spec §5) / `normalize_release_request_status()` (only "Pending at
+    Destination" is a known mapping — anything else is
+    `UNKNOWN_PORTAL_STATUS`, never guessed). New engine module
+    `src/engine/release_request.py`: `generate_pen_release_request()`
+    (verifies identity before generating — `StudentIdentityMismatchError`
+    if the portal's returned name doesn't match, Final Authority §E) and
+    `check_sent_request_status()` (records an `approval_checks` row,
+    classifies STILL_PENDING/STATUS_CHANGED/UNKNOWN_PORTAL_STATUS — never
+    auto-executes the next consequential action on a change, spec §M).
+    New `src/db/request_cases.py` and `src/db/approval_checks.py`
+    (schema tables already existed from step 4; nothing had written to
+    them yet) plus `src/db/students.py` (`upsert_student` — needed
+    because `request_cases.student_id` has a foreign key onto `students`,
+    and nothing had populated that table yet either). Fixture extended
+    with a persistent `#global-nav` "Student Release Request Management"
+    entry point outside the per-screen `<template>` swap (it must stay
+    reachable no matter which screen is currently shown — same reasoning
+    as the `<template>` rebuild in step 9). 2 new integration tests
+    (`tests/integration/test_release_request.py`). 39/39 tests
+    project-wide.
 5-9. [x] **Conditions 1-4 complete end-to-end** —
     `src/engine/condition1.py` .. `condition4.py`, refactored onto shared
     `src/engine/branches.py` (`run_udise_new_branch`,
@@ -230,13 +255,13 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] Student Status = `ACTIVE`
 - [x] HOS Details
 - [x] `IMPORT PENDING`
-- [ ] Student Release Request generation
-- [ ] Release confirmation dialog
-- [ ] Release request success
-- [ ] Request No capture
-- [ ] Sent Request list
-- [ ] `Pending at Destination`
-- [ ] Student Details modal
+- [x] Student Release Request generation
+- [x] Release confirmation dialog
+- [x] Release request success
+- [x] Request No capture
+- [x] Sent Request list
+- [x] `Pending at Destination`
+- [x] Student Details modal
 - [ ] ND reconciliation — actual 11-digit PEN discovered
 - [ ] ND reconciliation — PEN remains unavailable
 - [ ] Portal status unknown

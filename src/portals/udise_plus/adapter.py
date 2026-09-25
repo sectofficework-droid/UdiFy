@@ -35,6 +35,18 @@ DEFAULT_TIMEOUT_MS = 10_000
 AADHAAR_ALREADY_REGISTERED_TEXT = "AADHAAR number is already registered with some other student"
 INITIALIZATION_SUCCESS_TEXT = "The Student has been initialised/Saved Successfully."
 PROFILE_COMPLETE_TEXT = "Data completion is complete."
+RELEASE_REQUEST_SUCCESS_TEXT = "Release Request successfully generated"
+
+# Spec "HOW TO VIEW SENT REQUEST" §3 — the only confirmed raw status; any
+# other observed wording must route to manual review, never be guessed.
+_KNOWN_RELEASE_REQUEST_STATUSES = {
+    "Pending at Destination": "PENDING_AT_DESTINATION",
+}
+
+
+def normalize_release_request_status(raw_status: str) -> str:
+    """Never silently map an unrecognized status (spec §3)."""
+    return _KNOWN_RELEASE_REQUEST_STATUSES.get(raw_status, "UNKNOWN_PORTAL_STATUS")
 
 
 @dataclass(frozen=True)
@@ -67,6 +79,67 @@ class GlobalSearchResult:
     student_status: str  # e.g. "ACTIVE" — spec §13's decisive field
     source_school_name: str
     source_school_udise: str
+
+
+@dataclass(frozen=True)
+class StudentBasicDetails:
+    """Spec step 3 — Student Basic Details (as per School record/OGR),
+    returned by Get Details. `pen`/`dob` are the caller's own input
+    values, not re-read from the DOM — the confirmation screen re-displays
+    them under the same labels used to enter them, and re-querying by
+    label would be ambiguous once both are visible together."""
+
+    pen: str
+    dob: str
+    udise_code: str
+    school_name: str
+    student_name: str
+    gender: str
+    student_state_code: str
+    mother_name: str
+    father_name: str
+    aadhaar_no: str
+    name_as_per_aadhaar: str
+    aadhaar_capture_status: str
+
+
+@dataclass(frozen=True)
+class ReleaseAdmissionDetail:
+    """Spec step 4 — Student Admission Detail (destination context)."""
+
+    class_name: str
+    section: str
+    admission_date: str
+    remark: str
+
+
+@dataclass(frozen=True)
+class SentRequestRecord:
+    """Spec "HOW TO VIEW SENT REQUEST" §2-3 — one row of the Sent
+    Requests table, raw status always preserved alongside the normalized
+    value (never collapse the two — spec §3)."""
+
+    request_no: str
+    pen: str
+    requested_by: str
+    requested_to: str
+    closed_by: str
+    raw_status: str
+    normalized_status: str
+
+
+@dataclass(frozen=True)
+class SentRequestStudentSnapshot:
+    """Spec §5 — "Student Details (At the time the request was
+    generated)"."""
+
+    request_no: str
+    pen: str
+    student_name: str
+    mother_name: str
+    dob: str
+    father_name: str
+    class_name: str
 
 
 @dataclass(frozen=True)
@@ -250,6 +323,130 @@ class NationalUDISEPortalAdapter:
             block=p.get_by_label("Block", exact=True).input_value(),
             hos_name=p.get_by_label("Headmaster/Principal", exact=True).input_value(),
             hos_contact=p.get_by_label("Contact No.", exact=True).input_value(),
+        )
+
+    # ===== PEN Request Sent — Student Release Request (DB-DESIGN.md §C.3b) =====
+    def get_student_release_details(self, pen: str, dob: str) -> StudentBasicDetails:
+        """Spec steps 1-3: Student Release Request Management -> Generate
+        Student Release Request Within State -> Enter PEN/DOB -> Get
+        Details. The caller must verify the returned identity before
+        proceeding (spec Final Authority §E multi-attribute identity)."""
+        p = self.page
+        p.get_by_text("Student Release Request Management", exact=True).click()
+        p.get_by_text("Generate Student Release Request Within State", exact=True).click()
+        p.get_by_label("PEN", exact=True).fill(pen)
+        p.get_by_label("DOB", exact=True).fill(dob)
+        p.get_by_role("button", name="Get Details").click()
+        self._verify_visible(
+            p.get_by_text("Student Basic Details", exact=True),
+            "Expected Student Basic Details after Get Details",
+        )
+        return StudentBasicDetails(
+            pen=pen,
+            dob=dob,
+            udise_code=p.get_by_label("UDISE Code", exact=True).input_value(),
+            school_name=p.get_by_label("School Name", exact=True).input_value(),
+            student_name=p.get_by_label("Student Name", exact=True).input_value(),
+            gender=p.get_by_label("Gender", exact=True).input_value(),
+            student_state_code=p.get_by_label("Student State Code", exact=True).input_value(),
+            mother_name=p.get_by_label("Mother's Name", exact=True).input_value(),
+            father_name=p.get_by_label("Father's Name", exact=True).input_value(),
+            aadhaar_no=p.get_by_label("Aadhaar No.", exact=True).input_value(),
+            name_as_per_aadhaar=p.get_by_label("Name as per Aadhaar", exact=True).input_value(),
+            aadhaar_capture_status=p.get_by_label("Aadhaar Capture Status", exact=True).input_value(),
+        )
+
+    def submit_release_admission_detail(self, admission: ReleaseAdmissionDetail) -> None:
+        """Spec step 4 — Student Admission Detail (destination class/
+        section/admission date/remark)."""
+        p = self.page
+        p.get_by_label("Class", exact=True).select_option(label=admission.class_name)
+        p.get_by_label("Section", exact=True).select_option(label=admission.section)
+        p.get_by_label("Date of Admission", exact=True).fill(admission.admission_date)
+        p.get_by_label("Select Remark", exact=True).select_option(label=admission.remark)
+
+    def generate_release_request(self) -> str:
+        """Spec steps 5-7: Generate Student Release Request -> confirmation
+        dialog -> Confirm -> success message -> capture Request No. Never
+        treats the click alone as success (Final Authority §D)."""
+        p = self.page
+        p.get_by_role("button", name="Generate Student Release Request").click()
+        self._verify_visible(
+            p.get_by_text("Confirm Release Request", exact=True),
+            "Expected the release-request confirmation dialog",
+        )
+        p.get_by_role("button", name="Confirm").click()
+        self._verify_visible(
+            p.get_by_text(RELEASE_REQUEST_SUCCESS_TEXT, exact=True),
+            f"Expected success message: {RELEASE_REQUEST_SUCCESS_TEXT!r}",
+        )
+        request_no = p.get_by_label("Request No.", exact=True).input_value()
+        if not request_no:
+            raise ConsequentialActionUnverifiedError(
+                "Release request succeeded but no Request No. was captured"
+            )
+        log_event(
+            _logger, logging.INFO, "PEN release request generated",
+            portal="NATIONAL_UDISE", request_no=request_no,
+        )
+        return request_no
+
+    # ===== View Sent Request (DB-DESIGN.md §C.3c) =====
+    def open_sent_requests(self) -> None:
+        """Spec "HOW TO VIEW SENT REQUEST" §1-2 navigation."""
+        p = self.page
+        p.get_by_text("Student Release Request Management", exact=True).click()
+        p.get_by_text(
+            "View Student Release Request(s) Within State (Sent)", exact=True
+        ).click()
+        self._verify_visible(
+            p.get_by_text("Inbox (Request List) (All Requests)", exact=True),
+            "Expected the Sent Requests inbox",
+        )
+
+    def find_sent_request(self, request_no: str) -> SentRequestRecord:
+        """Spec §2-3: match by Request No. before reading status — never
+        assume the first row is the intended one. Cell order follows the
+        confirmed observed column order (S.No., Request No./PEN,
+        Requested By, Requested To, Closed/Auto Closed By, Request
+        Status, Action) — a spec-confirmed order, not a positional guess.
+        """
+        p = self.page
+        row = p.get_by_role("row").filter(has_text=request_no)
+        self._verify_visible(row, f"Expected a Sent Requests row for {request_no!r}")
+        cells = row.get_by_role("cell")
+        raw_status = (cells.nth(5).text_content() or "").strip()
+        return SentRequestRecord(
+            request_no=request_no,
+            pen=(cells.nth(1).text_content() or "").strip(),
+            requested_by=(cells.nth(2).text_content() or "").strip(),
+            requested_to=(cells.nth(3).text_content() or "").strip(),
+            closed_by=(cells.nth(4).text_content() or "").strip(),
+            raw_status=raw_status,
+            normalized_status=normalize_release_request_status(raw_status),
+        )
+
+    def open_sent_request_student_details(self, request_no: str) -> SentRequestStudentSnapshot:
+        """Spec §5 — "Student Details (At the time the request was
+        generated)": verify the request belongs to the intended student
+        before acting on it."""
+        p = self.page
+        row = p.get_by_role("row").filter(has_text=request_no)
+        row.get_by_role("button", name="Student Details").click()
+        self._verify_visible(
+            p.get_by_text(
+                "Student Details (At the time the request was generated)", exact=True
+            ),
+            "Expected the Student Details snapshot modal",
+        )
+        return SentRequestStudentSnapshot(
+            request_no=request_no,
+            pen=p.get_by_label("PEN", exact=True).input_value(),
+            student_name=p.get_by_label("Student Name", exact=True).input_value(),
+            mother_name=p.get_by_label("Mother's Name", exact=True).input_value(),
+            dob=p.get_by_label("DOB", exact=True).input_value(),
+            father_name=p.get_by_label("Father's Name", exact=True).input_value(),
+            class_name=p.get_by_label("Class", exact=True).input_value(),
         )
 
     # -- shared verification helper ---------------------------------------

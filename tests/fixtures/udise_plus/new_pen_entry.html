@@ -6,6 +6,9 @@
 </head>
 <body>
 
+<div id="global-nav" hidden>
+  <button type="button" id="nav-release-management-btn">Student Release Request Management</button>
+</div>
 <main id="app"></main>
 
 <!-- Each screen lives in its own <template> and is swapped into #app one
@@ -64,6 +67,120 @@
       <button type="button" id="view-details-btn">View Details</button>
     </div>
     <div id="aadhaar-not-registered" hidden>No existing registration found.</div>
+  </section>
+</template>
+
+<template id="tpl-release-menu">
+  <section>
+    <h2>Student Release Request Management</h2>
+    <button type="button" id="release-generate-nav-btn">Generate Student Release Request Within State</button>
+    <button type="button" id="release-approve-nav-btn">Approve Student Release Request(s) Within State</button>
+    <button type="button" id="release-inbox-nav-btn">View Student Release Request(s) Within State (Inbox)</button>
+    <button type="button" id="release-sent-nav-btn">View Student Release Request(s) Within State (Sent)</button>
+  </section>
+</template>
+
+<template id="tpl-release-generate">
+  <section>
+    <label for="rel-pen">PEN</label>
+    <input id="rel-pen" type="text">
+    <label for="rel-dob">DOB</label>
+    <input id="rel-dob" type="text">
+    <button type="button" id="rel-get-details-btn">Get Details</button>
+
+    <div id="rel-basic-details" hidden>
+      <h3>Student Basic Details</h3>
+      <label for="rel-udise-code">UDISE Code</label>
+      <input id="rel-udise-code" type="text" value="24224100067" readonly>
+      <label for="rel-school-name">School Name</label>
+      <input id="rel-school-name" type="text" value="Satyam Stars International School" readonly>
+      <label for="rel-student-name">Student Name</label>
+      <input id="rel-student-name" type="text" value="Test Release Student" readonly>
+      <label for="rel-gender">Gender</label>
+      <input id="rel-gender" type="text" value="Female" readonly>
+      <label for="rel-state-code">Student State Code</label>
+      <input id="rel-state-code" type="text" value="24" readonly>
+      <label for="rel-mother-name">Mother's Name</label>
+      <input id="rel-mother-name" type="text" value="Test Mother" readonly>
+      <label for="rel-father-name">Father's Name</label>
+      <input id="rel-father-name" type="text" value="Test Father" readonly>
+      <label for="rel-aadhaar-no">Aadhaar No.</label>
+      <input id="rel-aadhaar-no" type="text" value="999988887777" readonly>
+      <label for="rel-name-aadhaar">Name as per Aadhaar</label>
+      <input id="rel-name-aadhaar" type="text" value="Test Release Student" readonly>
+      <label for="rel-aadhaar-status">Aadhaar Capture Status</label>
+      <input id="rel-aadhaar-status" type="text" value="Captured" readonly>
+
+      <h3>Student Admission Detail</h3>
+      <label for="rel-class">Class</label>
+      <select id="rel-class">
+        <option value="">--</option>
+        <option value="lkg">LKG/KG1/PP2</option>
+      </select>
+      <label for="rel-section">Section</label>
+      <select id="rel-section">
+        <option value="">--</option>
+        <option value="a">A</option>
+      </select>
+      <label for="rel-admission-date">Date of Admission</label>
+      <input id="rel-admission-date" type="text">
+      <label for="rel-remark">Select Remark</label>
+      <select id="rel-remark">
+        <option value="">--</option>
+        <option value="release">Please release the student from the school records</option>
+      </select>
+
+      <button type="button" id="rel-generate-btn">Generate Student Release Request</button>
+
+      <div id="rel-confirm-dialog" hidden>
+        <p>Confirm Release Request</p>
+        <button type="button" id="rel-cancel-btn">Cancel</button>
+        <button type="button" id="rel-confirm-btn">Confirm</button>
+      </div>
+
+      <div id="rel-success" hidden>
+        <p>Release Request successfully generated</p>
+        <label for="rel-request-no">Request No.</label>
+        <input id="rel-request-no" type="text" value="SR/GJ/GJ/305364710" readonly>
+      </div>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-sent-requests">
+  <section>
+    <h3>Inbox (Request List) (All Requests)</h3>
+    <table>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>SR/GJ/GJ/305364710</td>
+          <td>Satyam Stars International School</td>
+          <td>Other School, Ganjam</td>
+          <td>NA</td>
+          <td>Pending at Destination</td>
+          <td><button type="button" id="student-details-btn">Student Details</button></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div id="student-details-modal" hidden>
+      <h3>Student Details (At the time the request was generated)</h3>
+      <label for="sd-request-no">Request No.</label>
+      <input id="sd-request-no" type="text" value="SR/GJ/GJ/305364710" readonly>
+      <label for="sd-pen">PEN</label>
+      <input id="sd-pen" type="text" value="23428960733" readonly>
+      <label for="sd-student-name">Student Name</label>
+      <input id="sd-student-name" type="text" value="Test Release Student" readonly>
+      <label for="sd-mother-name">Mother's Name</label>
+      <input id="sd-mother-name" type="text" value="Test Mother" readonly>
+      <label for="sd-dob">DOB</label>
+      <input id="sd-dob" type="text" value="03/02/2022" readonly>
+      <label for="sd-father-name">Father's Name</label>
+      <input id="sd-father-name" type="text" value="Test Father" readonly>
+      <label for="sd-class">Class</label>
+      <input id="sd-class" type="text" value="LKG/KG1/PP2" readonly>
+    </div>
   </section>
 </template>
 
@@ -193,13 +310,17 @@
 
   show('login');
 
-  app.addEventListener('click', function (e) {
+  // Attached to <body>, not #app, so the persistent #global-nav button
+  // (outside #app — it must stay reachable no matter which screen the
+  // single-page swap put into #app) is covered by the same listener.
+  document.body.addEventListener('click', function (e) {
     var id = e.target && e.target.id;
     if (!id) return;
 
     switch (id) {
       case 'login-btn':
         show('init');
+        document.getElementById('global-nav').hidden = false;
         break;
       case 'add-new-student-btn':
         document.getElementById('init-success').hidden = false;
@@ -249,6 +370,32 @@
         // `hidden` elements, only ones absent from the DOM.
         e.target.remove();
         document.getElementById('hos-details-modal').hidden = false;
+        break;
+      case 'nav-release-management-btn':
+        show('release-menu');
+        break;
+      case 'release-generate-nav-btn':
+        show('release-generate');
+        break;
+      case 'release-sent-nav-btn':
+        show('sent-requests');
+        break;
+      case 'rel-get-details-btn':
+        document.getElementById('rel-basic-details').hidden = false;
+        break;
+      case 'rel-generate-btn':
+        document.getElementById('rel-confirm-dialog').hidden = false;
+        break;
+      case 'rel-cancel-btn':
+        document.getElementById('rel-confirm-dialog').hidden = true;
+        break;
+      case 'rel-confirm-btn':
+        document.getElementById('rel-confirm-dialog').remove();
+        document.getElementById('rel-success').hidden = false;
+        break;
+      case 'student-details-btn':
+        e.target.remove();
+        document.getElementById('student-details-modal').hidden = false;
         break;
     }
   });
