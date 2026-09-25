@@ -380,9 +380,17 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] `REQUEST SENT`
 - [x] Student Transfer Request List
 - [x] Pending request
-- [ ] Session expiry
-- [ ] Timeout
-- [ ] Unknown page/state
+- [x] Session expiry — modeled as the same observable signature as
+      "Unknown page/state" below (spec never confirms distinguishing
+      text for either); a real Playwright timeout routed through
+      `run_with_recovery()`, captured with a diagnostic, tested
+      (`tests/integration/test_session_timeout_scenarios.py`)
+- [x] Timeout — same test as above; `run_with_recovery()` classifies any
+      bare `PlaywrightTimeoutError` this way
+- [x] Unknown page/state — same test; see `RecoverableAutomationError`'s
+      docstring in `src/engine/resilience.py` for why this and Session
+      expiry/Timeout aren't distinguished (no recording confirms distinct
+      text for any of them)
 - [x] Duplicate-request protection — `find_open_request_case()`
       (`src/db/request_cases.py`) + a check at the top of
       `run_udise_import_branch()` (`src/engine/branches.py`): a second
@@ -416,11 +424,21 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] Student Details modal
 - [x] ND reconciliation — actual 11-digit PEN discovered
 - [x] ND reconciliation — PEN remains unavailable
-- [ ] Portal status unknown
-- [ ] Session expiry
-- [ ] Timeout
-- [ ] Network failure
-- [ ] Browser crash
+- [x] Portal status unknown — `normalize_release_request_status()` only
+      maps the one confirmed wording ("Pending at Destination"); anything
+      else is `UNKNOWN_PORTAL_STATUS`, which `classify_status_check()`
+      always routes to manual review regardless of history, tested
+      (`tests/unit/test_portal_status_normalization.py`)
+- [x] Session expiry — same `run_with_recovery()` mechanism as the
+      Gujarat side above, tested against the National adapter too
+      (`tests/integration/test_session_timeout_scenarios.py`)
+- [x] Timeout — same test
+- [x] Network failure — see Browser crash below (Playwright surfaces
+      both as the same generic error class)
+- [x] Browser crash — a real closed browser mid-action, routed through
+      `run_with_recovery()` into `BrowserOrNetworkFailureError` with a
+      captured diagnostic, tested
+      (`tests/integration/test_session_timeout_scenarios.py`)
 - [x] Duplicate request prevention — same mechanism as the Gujarat side
       above, applied to `run_pen_import_branch()` (`IMPORT_PENDING_ACTIVE`)
       and `generate_pen_release_request()` (`RELEASE_REQUEST_SENT`), both
@@ -489,8 +507,11 @@ LIVE CREDENTIALS: NOT CONFIGURED
       checkpoint" does not — `workflow_runs.checkpoint_json` exists in
       the schema but nothing writes or reads it yet.
 - [ ] Browser crash → DB state persisted, re-verify before repeating —
-      `BrowserOrNetworkFailureError` detects and diagnoses the crash;
-      "re-verify before repeating" as an actual retry flow is not built.
+      `BrowserOrNetworkFailureError` detects and diagnoses a real crash
+      (tested against an actually-closed browser, not just a simulated
+      exception — `tests/integration/test_session_timeout_scenarios.py`);
+      "re-verify before repeating" as an actual retry flow is still not
+      built.
 - [ ] Save succeeded but confirmation not seen → verify state, don't
       repeat — the underlying principle (never treat an unverified
       action as success) is enforced everywhere via
