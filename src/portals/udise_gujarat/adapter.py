@@ -39,6 +39,16 @@ _logger = get_logger("portals.gujarat_udise")
 
 DEFAULT_TIMEOUT_MS = 10_000
 
+# Spec §X.14 — only "Pending" is a confirmed observed status for a Sent
+# Transfer Request; anything else routes to manual review, never guessed.
+_KNOWN_TRANSFER_REQUEST_STATUSES = {
+    "Pending": "PENDING",
+}
+
+
+def normalize_transfer_request_status(raw_status: str) -> str:
+    return _KNOWN_TRANSFER_REQUEST_STATUSES.get(raw_status, "UNKNOWN_PORTAL_STATUS")
+
 
 @dataclass(frozen=True)
 class ManualBirthDetails:
@@ -67,6 +77,22 @@ class CtsDetails:
     dob: str
     disabled: bool = False
     disability_type: str | None = None
+
+
+@dataclass(frozen=True)
+class TransferRequestRecord:
+    """spec §X.14 — one row of the Student Transfer Request List's Sent
+    Transfer Requests table. Assumption flagged (needs live-DOM
+    verification, same posture as other flagged assumptions in this
+    codebase): the spec confirms the list's existence and its Sent/
+    Received/Completed/pending-status-filter structure but not an exact
+    column layout, so this uses a minimal, plausible column set."""
+
+    uid: str
+    student_name: str
+    destination_school: str
+    raw_status: str
+    normalized_status: str
 
 
 class GujaratUDISEPortalAdapter:
@@ -256,6 +282,34 @@ class GujaratUDISEPortalAdapter:
             portal="GUJARAT_UDISE",
         )
         return success_text
+
+    # -- Student Transfer Request List / status check (spec §X.14, §M) ---
+    def open_transfer_request_list(self) -> None:
+        p = self.page
+        p.get_by_text("Manage Students", exact=True).click()
+        p.get_by_text("Student Transfer Request List", exact=True).click()
+        p.get_by_text("Sent Transfer Requests", exact=True).click()
+        self._verify_visible(
+            p.get_by_text("Sent Transfer Requests (All)", exact=True),
+            "Expected the Sent Transfer Requests list",
+        )
+
+    def find_transfer_request(self, uid: str) -> TransferRequestRecord:
+        """Matched by UID — Gujarat's transfer requests have no separate
+        request number (spec §X), unlike the National release-request
+        workflow's Request No."""
+        p = self.page
+        row = p.get_by_role("row").filter(has_text=uid)
+        self._verify_visible(row, f"Expected a Sent Transfer Requests row for {uid!r}")
+        cells = row.get_by_role("cell")
+        raw_status = (cells.nth(2).text_content() or "").strip()
+        return TransferRequestRecord(
+            uid=uid,
+            student_name=(cells.nth(0).text_content() or "").strip(),
+            destination_school=(cells.nth(1).text_content() or "").strip(),
+            raw_status=raw_status,
+            normalized_status=normalize_transfer_request_status(raw_status),
+        )
 
     # -- shared verification helper ---------------------------------------
     def _verify_visible(self, locator: Locator, expected_description: str) -> None:

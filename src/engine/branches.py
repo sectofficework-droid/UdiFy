@@ -8,7 +8,10 @@ branches run and in what combination (spec §11/§79/§149/§AA).
 from __future__ import annotations
 
 import logging
+import sqlite3
 
+from src.db.request_cases import create_request_case
+from src.db.students import upsert_student
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.engine.field_mapping import (
     pen_row_to_enrolment_profile_fields,
@@ -84,8 +87,9 @@ def run_udise_new_branch(
 
 
 def run_udise_import_branch(
-    gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository, student: Student,
-    *, class_name: str,
+    gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository,
+    conn: sqlite3.Connection, student: Student,
+    *, class_name: str, environment: str,
 ) -> str:
     """UDISE Import / transfer-request (spec §X) — the confirmed ACTIVE/
     pending outcome only. The known UID (from OGR/TC, per spec §X's
@@ -119,6 +123,20 @@ def run_udise_import_branch(
     if student.udise_row is not None:
         write_and_verify(sheets, student.udise_row, "REMARK", "REQUEST SENT")
         sheets.set_row_color(student.udise_row, LIGHT_ORANGE)
+
+    upsert_student(conn, student)
+    create_request_case(
+        conn,
+        student_id=student.student_id,
+        case_type="TRANSFER_REQUEST_SENT",
+        portal="GUJARAT_UDISE",
+        request_type="TRANSFER_REQUEST",
+        environment=environment,
+        # Gujarat's Student Transfer Request List has no separate request
+        # number (spec §X) — it's matched by UID, so the UID is stored in
+        # this generic "portal identifier for the request" column instead.
+        request_no=student.uid_udise,
+    )
 
     log_event(
         _logger, logging.INFO, "UDISE Import transfer request submitted",
@@ -174,7 +192,8 @@ def run_pen_new_branch(
 
 
 def run_pen_import_branch(
-    national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository, student: Student,
+    national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository,
+    conn: sqlite3.Connection, student: Student, *, environment: str,
 ) -> dict:
     """PEN Import — Other School ACTIVE (DB-DESIGN.md §C.3a, the newly-
     confirmed spec section). Only the confirmed ACTIVE/pending outcome —
@@ -216,6 +235,23 @@ def run_pen_import_branch(
     if student.pen_row is not None:
         write_and_verify(sheets, student.pen_row, "REMARK", "IMPORT PENDING")
         sheets.set_row_color(student.pen_row, LIGHT_ORANGE)
+
+    upsert_student(conn, student)
+    create_request_case(
+        conn,
+        student_id=student.student_id,
+        case_type="IMPORT_PENDING_ACTIVE",
+        portal="NATIONAL_UDISE",
+        request_type="NONE",
+        environment=environment,
+        source_school_udise=track.source_school_udise,
+        source_school_name=track.source_school_name,
+        source_school_state=hos.state,
+        source_school_district=hos.district,
+        source_school_block=hos.block,
+        hos_name=hos.hos_name,
+        hos_contact=hos.hos_contact,
+    )
 
     log_event(
         _logger, logging.INFO, "PEN Import IMPORT_PENDING_ACTIVE_OTHER_SCHOOL",

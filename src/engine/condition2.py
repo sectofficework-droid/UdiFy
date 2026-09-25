@@ -65,7 +65,9 @@ class Condition2Engine:
         uid = run_udise_new_branch(self.gujarat, self.sheets, student)
         log_state(_logger, run_id, student.student_id, "VERIFY_UDISE", uid=uid)
 
-        pen_import_info = run_pen_import_branch(self.national, self.sheets, student)
+        pen_import_info = run_pen_import_branch(
+            self.national, self.sheets, self.conn, student, environment=self.environment,
+        )
         log_state(
             _logger, run_id, student.student_id, "PEN_IMPORT_PENDING",
             pen=pen_import_info.get("pen"), status=pen_import_info.get("status"),

@@ -21,6 +21,7 @@
   <button type="button" id="nav-manage-students">Manage Students</button>
   <button type="button" id="nav-student-new-entry" hidden>Student New Entry</button>
   <button type="button" id="nav-standard-wise-entry" hidden>Standard Wise Entry</button>
+  <button type="button" id="nav-transfer-request-list" hidden>Student Transfer Request List</button>
 </section>
 
 <!-- ===================== NEW ENTRY: MANUAL BIRTH ===================== -->
@@ -157,6 +158,28 @@
   <div id="transfer-success" hidden>Student Transfer request saved successfully.</div>
 </section>
 
+<!-- ===================== STUDENT TRANSFER REQUEST LIST ===================== -->
+<section id="screen-transfer-request-list" hidden>
+  <div id="transfer-list-tabs">
+    <button type="button" id="sent-transfer-requests-tab">Sent Transfer Requests</button>
+    <button type="button" id="received-transfer-requests-tab">Received Transfer Requests</button>
+    <button type="button" id="completed-transfer-requests-tab">Completed Transfer Requests</button>
+  </div>
+  <div id="sent-transfer-requests-panel" hidden>
+    <h3>Sent Transfer Requests (All)</h3>
+    <table>
+      <tbody>
+        <tr>
+          <td>AARUSHI</td>
+          <td>SATYAM STARS INTERNATIONAL</td>
+          <td>Pending</td>
+          <td>OTHER-SCHOOL-UID-001</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
 <script>
   function show(id) {
     document.querySelectorAll('section').forEach(function (s) { s.hidden = true; });
@@ -170,6 +193,7 @@
   document.getElementById('nav-manage-students').addEventListener('click', function () {
     document.getElementById('nav-student-new-entry').hidden = false;
     document.getElementById('nav-standard-wise-entry').hidden = false;
+    document.getElementById('nav-transfer-request-list').hidden = false;
   });
 
   document.getElementById('nav-student-new-entry').addEventListener('click', function () {
@@ -178,6 +202,14 @@
 
   document.getElementById('nav-standard-wise-entry').addEventListener('click', function () {
     show('screen-standard-wise-entry');
+  });
+
+  document.getElementById('nav-transfer-request-list').addEventListener('click', function () {
+    show('screen-transfer-request-list');
+  });
+
+  document.getElementById('sent-transfer-requests-tab').addEventListener('click', function () {
+    document.getElementById('sent-transfer-requests-panel').hidden = false;
   });
 
   document.getElementById('swe-search-btn').addEventListener('click', function () {

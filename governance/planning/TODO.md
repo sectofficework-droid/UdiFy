@@ -223,8 +223,27 @@ and mocked/fixture portal pages as the primary implementation target.
     keeping the hash chain intact. 3 new integration tests
     (`tests/integration/test_nd_reconciliation.py`), one per outcome.
     42/42 tests project-wide.
-11. Approval/status-check batch flow across both portals + Status-Changed
-    manual review queue.
+11. [x] Approval/status-check batch flow across both portals (spec §M) +
+    Status-Changed manual review queue — `GujaratUDISEPortalAdapter.
+    open_transfer_request_list()`/`find_transfer_request()` (matched by
+    UID — Gujarat has no separate request number, unlike National's
+    Request No.; assumption flagged: exact Sent Transfer Requests column
+    layout isn't spec-confirmed, needs live-DOM verification) +
+    `normalize_transfer_request_status()` (only "Pending" is a known
+    mapping). `run_udise_import_branch()` and `run_pen_import_branch()`
+    (`src/engine/branches.py`) now also persist a `request_cases` row
+    (TRANSFER_REQUEST_SENT / IMPORT_PENDING_ACTIVE) — previously nothing
+    wrote to that table for these two branches, so there was nothing yet
+    to batch-check. New `src/engine/approval_batch.py`:
+    `check_request_case_status()` (dispatches to the correct portal by
+    `request_cases.portal`) and `run_batch_status_check()` (the single
+    operator-authorized confirmation covering every eligible case across
+    both portals at once — spec's "ONE confirmation, not per student");
+    neither ever auto-executes a next consequential action on
+    STATUS_CHANGED/UNKNOWN_PORTAL_STATUS, which stay the caller's manual-
+    review queue. 1 new integration test exercising both portals in one
+    batch call (`tests/integration/test_approval_batch.py`). 43/43 tests
+    project-wide.
 12. Verification gates (consequential-action rule, `MOCK_SUCCESS` vs
     `LIVE_VERIFIED_SUCCESS` distinction) wired through every branch above,
     not bolted on after.
@@ -252,8 +271,8 @@ and mocked/fixture portal pages as the primary implementation target.
 - [x] Transfer From / Transfer To
 - [x] "Student Transfer request saved successfully."
 - [x] `REQUEST SENT`
-- [ ] Student Transfer Request List
-- [ ] Pending request
+- [x] Student Transfer Request List
+- [x] Pending request
 - [ ] Session expiry
 - [ ] Timeout
 - [ ] Unknown page/state

@@ -64,7 +64,8 @@ class Condition4Engine:
         log_state(_logger, run_id, student.student_id, "DETERMINE_ENTRY_CONDITION", condition=4)
 
         udise_status = run_udise_import_branch(
-            self.gujarat, self.sheets, student, class_name=class_name or student.class_name,
+            self.gujarat, self.sheets, self.conn, student,
+            class_name=class_name or student.class_name, environment=self.environment,
         )
         log_state(_logger, run_id, student.student_id, "UDISE_IMPORT_PENDING", status=udise_status)
 
@@ -75,7 +76,9 @@ class Condition4Engine:
             portal_status=udise_status,
         )
 
-        pen_import_info = run_pen_import_branch(self.national, self.sheets, student)
+        pen_import_info = run_pen_import_branch(
+            self.national, self.sheets, self.conn, student, environment=self.environment,
+        )
         log_state(
             _logger, run_id, student.student_id, "PEN_IMPORT_PENDING",
             pen=pen_import_info.get("pen"), status=pen_import_info.get("status"),
