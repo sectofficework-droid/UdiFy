@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 
-from src.db.request_cases import create_request_case
+from src.db.request_cases import create_request_case, find_open_request_case
 from src.db.students import upsert_student
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.engine.field_mapping import (
@@ -106,6 +106,22 @@ def run_udise_import_branch(
             f"{student.student_id!r}: UDISE Import requires an already-known "
             "UID (e.g. from the student's Transfer Certificate) — none on record"
         )
+
+    existing = find_open_request_case(
+        conn, student_id=student.student_id,
+        case_type="TRANSFER_REQUEST_SENT", portal="GUJARAT_UDISE",
+    )
+    if existing is not None:
+        # spec AI-operating-instructions #19: never duplicate a transfer
+        # request because a confirmation response was lost — a request
+        # already on record for this student means one was already
+        # submitted; resubmitting risks a second real transfer request.
+        log_event(
+            _logger, logging.INFO, "UDISE Import: request already sent, skipping resubmission",
+            student_id=student.student_id, existing_request_case_id=existing.request_case_id,
+        )
+        return "REQUEST_SENT"
+
     found = gujarat.search_existing_student_by_uid(class_name, student.uid_udise)
     if not found:
         log_event(
@@ -209,6 +225,28 @@ def run_pen_import_branch(
         raise StudentIdentityError(
             f"{student.student_id!r}: PEN Import requires the student's Aadhaar number"
         )
+
+    existing_case = find_open_request_case(
+        conn, student_id=student.student_id,
+        case_type="IMPORT_PENDING_ACTIVE", portal="NATIONAL_UDISE",
+    )
+    if existing_case is not None:
+        log_event(
+            _logger, logging.INFO, "PEN Import: already recorded as pending, skipping re-check",
+            student_id=student.student_id, existing_request_case_id=existing_case.request_case_id,
+        )
+        return {
+            "pen": None,
+            "source_school_udise": existing_case.source_school_udise,
+            "source_school_name": existing_case.source_school_name,
+            "state": existing_case.source_school_state,
+            "district": existing_case.source_school_district,
+            "block": existing_case.source_school_block,
+            "hos_name": existing_case.hos_name,
+            "hos_contact": existing_case.hos_contact,
+            "status": "ACTIVE",
+        }
+
     existing = national.check_aadhaar_availability(student.aadhaar)
     if not existing:
         raise BranchError(

@@ -15,7 +15,12 @@ import logging
 import sqlite3
 
 from src.db.approval_checks import ApprovalCheck, record_approval_check
-from src.db.request_cases import create_request_case, get_request_case, update_request_case_status
+from src.db.request_cases import (
+    create_request_case,
+    find_open_request_case,
+    get_request_case,
+    update_request_case_status,
+)
 from src.db.students import upsert_student
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.engine.branches import BranchError, write_and_verify
@@ -44,7 +49,23 @@ def generate_pen_release_request(
 ) -> str:
     """Spec steps 1-8: Get Details -> verify identity -> Admission Detail
     -> Generate -> Confirm -> capture Request No. -> REQUEST_SENT/LIGHT
-    ORANGE. Returns the new request_case_id."""
+    ORANGE. Returns the request_case_id — an existing open one if a
+    release request was already generated for this student (spec AI-
+    operating-instructions #19: never duplicate a request because a
+    confirmation response was lost), the portal is never touched twice.
+    """
+    existing_case = find_open_request_case(
+        conn, student_id=student.student_id,
+        case_type="RELEASE_REQUEST_SENT", portal="NATIONAL_UDISE",
+    )
+    if existing_case is not None:
+        log_event(
+            _logger, logging.INFO,
+            "Release request already generated, skipping resubmission",
+            student_id=student.student_id, existing_request_case_id=existing_case.request_case_id,
+        )
+        return existing_case.request_case_id
+
     details = national.get_student_release_details(pen, dob)
 
     if details.student_name.strip().lower() != student.name.strip().lower():

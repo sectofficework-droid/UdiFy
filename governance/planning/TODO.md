@@ -383,7 +383,13 @@ and mocked/fixture portal pages as the primary implementation target.
 - [ ] Session expiry
 - [ ] Timeout
 - [ ] Unknown page/state
-- [ ] Duplicate-request protection
+- [x] Duplicate-request protection — `find_open_request_case()`
+      (`src/db/request_cases.py`) + a check at the top of
+      `run_udise_import_branch()` (`src/engine/branches.py`): a second
+      call for the same student recognizes the existing
+      `TRANSFER_REQUEST_SENT` row and returns without touching the
+      Gujarat portal again, tested
+      (`tests/integration/test_duplicate_request_protection.py`)
 
 **National UDISE+ mocks:**
 - [x] New PEN
@@ -415,7 +421,10 @@ and mocked/fixture portal pages as the primary implementation target.
 - [ ] Timeout
 - [ ] Network failure
 - [ ] Browser crash
-- [ ] Duplicate request prevention
+- [x] Duplicate request prevention — same mechanism as the Gujarat side
+      above, applied to `run_pen_import_branch()` (`IMPORT_PENDING_ACTIVE`)
+      and `generate_pen_release_request()` (`RELEASE_REQUEST_SENT`), both
+      tested in the same file.
 
 ## Live Verification Gate (master spec decision §8/§13 — after the mock scenario checklist above is complete)
 
@@ -583,12 +592,19 @@ LIVE CREDENTIALS: NOT CONFIGURED
       `is_actual_pen()` only accepts a genuine 11-digit value; bank
       fields are simply not implemented (never populated with a
       fabricated placeholder either)
-- [ ] No blind duplicate submissions (transfer requests, PEN init,
-      etc.) — `MockSheetsRepository` prevents duplicate *sheet writes*
-      (tested), but no engine-level test proves duplicate-*submission*
-      protection at the portal-interaction level (matches "Duplicate-
-      request protection" being unchecked in both mock-scenario
-      checklists above).
+- [x] No blind duplicate submissions (transfer requests, PEN init,
+      etc.) — **closed 2026-09-25** for transfer/release/import
+      requests: `find_open_request_case()` protects
+      `run_udise_import_branch()`, `run_pen_import_branch()`, and
+      `generate_pen_release_request()` (3 tests,
+      `tests/integration/test_duplicate_request_protection.py`), on top
+      of `MockSheetsRepository`'s existing duplicate-*write* prevention.
+      New-UDISE/New-PEN *initialization* (`run_udise_new_branch`/
+      `run_pen_new_branch`) has no equivalent guard yet — a second call
+      would attempt a second "ADD NEW STUDENT"/"Add New Student" click;
+      lower risk in practice since both are one-shot creation actions
+      inside a single run, not a separately-resumable request, but not
+      explicitly tested either.
 - [x] `MOCK_SUCCESS` can never be written as `LIVE_VERIFIED_SUCCESS`, or
       cause a real spreadsheet write, or a claim of government completion
       (decision 2026-09-25) — see step 12's note: structurally enforced

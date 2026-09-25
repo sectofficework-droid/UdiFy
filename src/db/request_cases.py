@@ -115,3 +115,24 @@ def find_request_case_by_request_no(
         (request_no,),
     ).fetchone()
     return RequestCase(**dict(row)) if row else None
+
+
+def find_open_request_case(
+    conn: sqlite3.Connection, *, student_id: str, case_type: str, portal: str
+) -> RequestCase | None:
+    """Duplicate-submission protection (spec AI-operating-instructions
+    #19: "Never duplicate a transfer request because a confirmation
+    response was lost"). This table has no separate open/closed column —
+    an existing row of a given (student, case_type, portal) already
+    means that request/pending-import is still outstanding, since
+    nothing here ever deletes or archives a row — so "does one exist" is
+    exactly "is one already open." The caller checks this before
+    submitting a new transfer/release/import request and skips
+    resubmission if one is found.
+    """
+    row = conn.execute(
+        "SELECT * FROM request_cases WHERE student_id = ? AND case_type = ? "
+        "AND portal = ? ORDER BY created_at DESC LIMIT 1",
+        (student_id, case_type, portal),
+    ).fetchone()
+    return RequestCase(**dict(row)) if row else None
