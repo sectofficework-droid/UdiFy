@@ -131,6 +131,19 @@ class GujaratUDISEPortalAdapter:
         )
 
     def _captcha_present(self) -> bool:
+        # The real portal's captcha entry field isn't labeled "Captcha"
+        # itself (that text is a section heading, not this input's
+        # accessible label) — its actual placeholder is "ENTER CODE"
+        # (confirmed live 2026-09-26, screenshotted; neither mock fixture
+        # models a captcha at all, so this was never exercised before).
+        # `get_by_label("Captcha")` kept as a second check in case a
+        # captcha ever renders with a proper label instead — never
+        # remove a working detection signal to add a new one, only add.
+        try:
+            if self.page.get_by_placeholder(ci_exact("Enter Code")).is_visible(timeout=1000):
+                return True
+        except PlaywrightTimeoutError:
+            pass
         try:
             return self.page.get_by_label("Captcha").is_visible(timeout=1000)
         except PlaywrightTimeoutError:
