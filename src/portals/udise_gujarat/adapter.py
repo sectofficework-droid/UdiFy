@@ -139,13 +139,31 @@ class GujaratUDISEPortalAdapter:
         # `get_by_label("Captcha")` kept as a second check in case a
         # captcha ever renders with a proper label instead — never
         # remove a working detection signal to add a new one, only add.
+        #
+        # Checks the field's *value*, not just its visibility: the field
+        # stays visible whether or not the operator has typed the code
+        # into it, so a visibility-only check never clears once it first
+        # fires — confirmed live (the operator solved the captcha, but
+        # this kept reporting "still present" on retry). An empty value
+        # means still waiting on the operator; once they've typed
+        # something, that's the human confirmation this adapter needs
+        # (it can't itself verify a captcha code is *correct* — only the
+        # real portal can, on submission — so "operator entered
+        # something" is the right/only signal available to act on here).
         try:
-            if self.page.get_by_placeholder(ci_exact("Enter Code")).is_visible(timeout=1000):
-                return True
+            field = self.page.get_by_placeholder(ci_exact("Enter Code"))
+            if field.is_visible(timeout=1000):
+                return field.input_value() == ""
         except PlaywrightTimeoutError:
             pass
         try:
-            return self.page.get_by_label("Captcha").is_visible(timeout=1000)
+            field = self.page.get_by_label("Captcha")
+            if not field.is_visible(timeout=1000):
+                return False
+            try:
+                return field.input_value() == ""
+            except Exception:
+                return True
         except PlaywrightTimeoutError:
             return False
 

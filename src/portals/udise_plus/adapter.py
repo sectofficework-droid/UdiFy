@@ -195,8 +195,24 @@ class NationalUDISEPortalAdapter:
         self.page.get_by_role("button", name="Login").click()
 
     def _captcha_present(self) -> bool:
+        # Checks the field's *value*, not just its visibility: the field
+        # stays visible whether or not the operator has typed the code
+        # into it, so a visibility-only check never clears once it first
+        # fires — confirmed live 2026-09-26 (the operator solved the
+        # captcha, but this kept reporting "still present" on retry). An
+        # empty value means still waiting on the operator; once they've
+        # typed something, that's the human confirmation this adapter
+        # needs (it can't itself verify a captcha code is *correct* —
+        # only the real portal can, on submission — so "operator entered
+        # something" is the right/only signal available to act on here).
         try:
-            return self.page.get_by_label("Captcha").is_visible(timeout=1000)
+            field = self.page.get_by_label("Captcha")
+            if not field.is_visible(timeout=1000):
+                return False
+            try:
+                return field.input_value() == ""
+            except Exception:
+                return True
         except PlaywrightTimeoutError:
             return False
 
