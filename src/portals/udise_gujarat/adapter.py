@@ -34,6 +34,7 @@ from src.portals.base import (
     AutomationPausedForUser,
     ConsequentialActionUnverifiedError,
     ci_exact,
+    labeled_input,
 )
 
 _logger = get_logger("portals.gujarat_udise")
@@ -111,7 +112,12 @@ class GujaratUDISEPortalAdapter:
     # -- login (spec §W: school code, password, CAPTCHA) -----------------
     def login(self, school_code: str, password: str) -> None:
         self.page.get_by_label("School Code").fill(school_code)
-        self.page.get_by_label("Password").fill(password)
+        # labeled_input, not plain get_by_label: the real portal's
+        # password field ambiguously substring-matches a separate
+        # "Toggle password" visibility button (`Locator.fill: strict mode
+        # violation`, found 2026-09-26 against the live portal, not
+        # reachable from the mock fixture, which has no such button).
+        labeled_input(self.page, "Password").fill(password)
         if self._captcha_present():
             log_event(
                 _logger, logging.INFO, "CAPTCHA detected on login, pausing for operator",

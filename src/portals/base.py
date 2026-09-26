@@ -31,6 +31,26 @@ def ci_exact(text: str) -> re.Pattern[str]:
     return re.compile(r"^\s*" + re.escape(text.strip()) + r"\s*$", re.IGNORECASE)
 
 
+def labeled_input(page: Page, label_substring: str):
+    """`get_by_label`, scoped to `<input>` elements only.
+
+    Found live 2026-09-26 against both real portals (not reachable from
+    the mock fixtures, which never modeled this): a password field's
+    accessible name ambiguously substring-matches a separate "Show/Toggle
+    password" visibility button on the same page — a modern UI pattern
+    neither original mock fixture included. Plain `get_by_label` there
+    hits Playwright's strict-mode violation (2 elements), and switching
+    to `ci_exact` instead breaks the match entirely, since the real
+    field's accessible name carries extra decoration (an icon glyph, a
+    required-field "*") that isn't just the label text — the real label
+    was never as clean as the mock's. This keeps substring/case-
+    insensitive tolerance (still needed for that decoration) while the
+    `<input>` filter excludes the sibling `<button>` the plain substring
+    match can't otherwise tell apart from the real field.
+    """
+    return page.get_by_label(label_substring).and_(page.locator("input"))
+
+
 class PortalName(str, Enum):
     GUJARAT_UDISE = "GUJARAT_UDISE"
     NATIONAL_UDISE = "NATIONAL_UDISE"
