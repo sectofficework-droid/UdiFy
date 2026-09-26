@@ -770,6 +770,39 @@ User said they will answer/arrange items 2, 3, and 5 directly (item 3 is
 now closed above). Items 2 and 5 remain before "approve release" can be
 honestly recorded as passed.
 
+## Editable Settings screen for LIVE credentials (2026-09-26)
+
+User request (ahead of Live Verification): configure the Google Sheets
+connection and both portal logins through the app instead of
+hand-editing `.env` every time — "make this dynamic for any sheet"
+clarified to mean *which* spreadsheet ID each of the fixed OGR/UDISE/PEN
+roles points to, not an arbitrary/unknown sheet-column rebuild (that
+would need re-deriving field mapping with no spec evidence — explicitly
+declined, same reasoning as file-upload/dependent-dropdown above).
+
+- New `src/config/settings_writer.py`: `write_env_values()` (updates/adds
+  keys in `.env`, preserves comments and unrelated lines, never logs
+  values) and `import_service_account_file()` (copies a chosen key into
+  git-ignored `credentials/service-account.json`).
+- `src/app/screens/settings_view.py` rewritten from read-only labels to
+  an editable form: service-account key (Browse… → copies into
+  `credentials/`), 3 spreadsheet IDs, Gujarat school code/username/
+  password, National username/password, all behind a Save button.
+  `UDIFY_ENVIRONMENT` itself stays read-only here deliberately —
+  flipping into LIVE mode is kept a separate, manual `.env` edit, never
+  a side effect of saving this form. A blank password field on Save
+  keeps whatever was already saved rather than clearing it. Saving
+  writes to `.env`/`credentials/` and takes effect on next restart —
+  no hot-swap of the running session's settings.
+- 8 new tests (`tests/unit/test_settings_writer.py`,
+  `tests/unit/test_settings_screen.py` — the latter drives the actual
+  widget: types into fields, clicks Save, asserts `.env` contents).
+  110/110 project-wide. Visually verified on the target machine
+  (screenshotted, navy/orange theme correct, all fields render and
+  accept input).
+- SETUP-GUIDE.md's "Configure" section updated with the GUI path
+  alongside the existing by-hand `.env` instructions.
+
 ## Next trigger
 
 **TESTING gate closed ("test it", 2026-09-26).** 102/102 tests passing.

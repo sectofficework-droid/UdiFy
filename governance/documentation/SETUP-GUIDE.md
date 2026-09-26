@@ -43,6 +43,21 @@ keys (all optional in MOCK mode): `UDIFY_SQLITE_PATH`,
 `UDIFY_DIAGNOSTICS_DIR`, `UDIFY_LOG_LEVEL`.
 
 **Live mode (only at the Live Verification Gate, TODO.md):**
+
+Two ways to fill in steps 1-2 below — pick whichever is more convenient:
+
+- **Through the app** (added 2026-09-26): launch UdiFy, open **Settings**,
+  browse to the service-account `.json` key (copied into `credentials/`
+  automatically) and fill in the three spreadsheet IDs and both portal
+  logins, then **Save**. Writes to `.env`/`credentials/` for you — never
+  logs what you typed. Takes effect on the **next app restart** (Settings
+  doesn't hot-swap the running session's config). Leaving a password
+  field blank on a later edit keeps whatever was already saved — it's
+  never blanked out just because you didn't retype it. The Environment
+  field itself (MOCK/LIVE) is deliberately read-only here — step 3 below
+  stays a separate, manual edit.
+- **By hand**: edit `.env` directly, as below.
+
 1. Place the Google service-account JSON in the git-ignored `credentials/`
    folder; reference its path from `.env` (`GOOGLE_SERVICE_ACCOUNT_FILE`,
    `GOOGLE_SPREADSHEET_ID_OGR`/`_UDISE`/`_PEN`).
