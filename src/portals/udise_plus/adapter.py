@@ -199,6 +199,39 @@ class NationalUDISEPortalAdapter:
         self.page.get_by_role(
             "button", name=re.compile(r"^\s*(Login|Sign In)\s*$", re.IGNORECASE)
         ).click()
+        self._verify_login_succeeded()
+
+    def _verify_login_succeeded(self) -> None:
+        # Real bug found live 2026-09-27: until this check existed,
+        # login() had NO post-click verification at all - it just
+        # clicked Sign In and returned. A rejected captcha (real portal
+        # shows an "Invalid Captcha" toast and stays on the login page)
+        # therefore silently reported as a successful login, since no
+        # exception was ever raised either way.
+        #
+        # Confirmed live: a successful login lands on
+        # https://sdms.udiseplus.gov.in/one-view/dashboard, headed
+        # "Welcome <name>," - checked via that text (not the URL), since
+        # the mock fixture's login is a same-URL template swap and never
+        # navigates anywhere (tests/fixtures/udise_plus/new_pen_entry.html
+        # updated with a matching "Welcome" marker on its own post-login
+        # screen so this one check covers both real and mock).
+        try:
+            expect(self.page.get_by_text(re.compile(r"Welcome", re.IGNORECASE))).to_be_visible(
+                timeout=self.timeout_ms
+            )
+        except AssertionError:
+            log_event(
+                _logger, logging.ERROR, "expected state not observed",
+                portal="NATIONAL_UDISE",
+                expected_state="post-login 'Welcome' text",
+                url=self.page.url, page_title=self.page.title(),
+            )
+            raise ConsequentialActionUnverifiedError(
+                "Expected navigation to the UDISE+ Common Module after Sign "
+                "In - login not confirmed (wrong captcha/credentials, or an "
+                "unrecognized page/state)"
+            ) from None
 
     def _captcha_present(self) -> bool:
         # get_by_label("Captcha") doesn't reach the real field: dumped

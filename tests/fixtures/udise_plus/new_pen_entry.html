@@ -32,6 +32,10 @@
 
 <template id="tpl-init">
   <section>
+    <!-- Confirmed live 2026-09-27: a real successful login lands on a
+         dashboard headed "Welcome <name>," - login()'s new post-login
+         check looks for this text, so the mock needs it too. -->
+    <span>Welcome Mock User,</span>
     <label for="init-class">Class</label>
     <select id="init-class">
       <option value="">--</option>

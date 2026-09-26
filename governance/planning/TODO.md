@@ -613,6 +613,81 @@ app or committed):
 navigation/search), and exercising the two write paths above against a
 real sheet.
 
+### L3 attempt #1 (PRIYANSHI PADUKA PRADHAN) — 2026-09-27, blocked before any write
+
+User explicitly authorized a real, live Condition 1 run (New UDISE + New
+PEN) for a specific real student — UDISE_Entry_(State)/PH2 row 10,
+PEN_Entry_(National)/PH2 row 10, Aadhaar 572345294349, class Balvatika,
+UDISE No and PEN both still empty/unset at the time. This was run via a
+controlled script (`Condition1Engine` unchanged, real sheets, real
+portal adapters — same pattern as the L1 login test), not yet through
+the GUI (`src/app/run_worker.py` is still hardcoded to MOCK mode only —
+no live-mode path exists there yet, separately noted, not built this
+session).
+
+**Result: no write happened, nothing was submitted.** The run correctly
+stopped itself early with `RecoverableAutomationError` (a genuine
+Playwright timeout — "Portal did not reach the expected state in
+time") rather than doing anything to the real portals or sheets. Two
+real, previously-unknown bugs were found and fixed as a direct result of
+this attempt:
+
+1. **`NationalUDISEPortalAdapter.login()` had no success verification at
+   all** — it filled the fields, clicked Sign In, and returned
+   unconditionally, so a *wrong* captcha (confirmed live: the real
+   portal shows an "Invalid Captcha" toast and stays on the login page)
+   silently reported as a successful login. Fixed: `login()` now calls
+   `_verify_login_succeeded()`, which waits for the "Welcome `<name>`,"
+   text confirmed on the real post-login dashboard
+   (`src/portals/udise_plus/adapter.py`). The mock fixture
+   (`tests/fixtures/udise_plus/new_pen_entry.html`) got a matching
+   `Welcome Mock User,` marker on its own post-login screen so the same
+   check works for both — same pattern as the Gujarat mock's `Home`
+   span. All 110 tests still pass (107 passed / 3 skipped) with this
+   change.
+2. **`initialize_new_student()`'s navigation assumption doesn't match
+   the real portal.** It assumes "Add New Student" is directly reachable
+   right after login (matching the mock, which jumps straight there).
+   Real evidence (live, read-only exploration, 2026-09-27) says
+   otherwise — the real post-login flow is:
+   `Login` → **dashboard hub** (`https://sdms.udiseplus.gov.in/one-view/dashboard`,
+   "Welcome `<name>`," 4 module cards: School Directory, School Profile
+   & Facilities, Teacher Module, Students Module, each with its own "Go"
+   button) → clicking **Students Module's "Go" opens a NEW browser
+   tab/window** (`https://sdms.udiseplus.gov.in/g2/#/academic-choice`,
+   "UDISE+ Student Module") → an **academic-year-choice screen**
+   ("Current Academic Year 2026-27" / "Snapshot 2025-26", pick one) →
+   **not yet explored beyond this point** — where "Add New Student"
+   actually lives is still unconfirmed. `initialize_new_student()` is
+   **not fixed yet** — flagging this rather than guessing further
+   navigation without evidence (RULEBOOK K1). Against the real portal
+   today it will correctly fail (Playwright timeout →
+   `RecoverableAutomationError`, the exact failure this L3 attempt hit)
+   rather than silently doing something wrong — a safe failure mode,
+   just not yet a working one.
+
+Two more real findings from the same exploration, both worth keeping in
+mind for later work, neither acted on yet:
+
+- The dashboard's "Activity Permissions" panel states **"Add Student
+  (PP3 to Class 1) is allowed"** for the current academic year — a
+  real, live eligibility restriction on new-student creation not
+  documented anywhere before this. User confirmed Balvatika (Priyanshi's
+  class) falls within this "PP3 to Class 1" range, so this doesn't block
+  her specifically, but this constraint is real and could block other
+  classes — nothing in the codebase currently checks it before
+  attempting a New UDISE/PEN entry.
+- The same panel states **"Send to Dropbox is not permitted"** —
+  confirms, independently of docs, why `run_udise_import_branch`'s
+  successful/Dropbox outcome is deliberately left unimplemented
+  (DB-DESIGN.md's own note on this already said not to guess this path).
+
+**Not yet done, revised**: mapping the real navigation from the
+academic-year-choice screen to an actual "Add New Student" screen (more
+live exploration needed before `initialize_new_student()` can be
+trusted against the real portal), L2 on both government portals more
+generally, L3 attempt #2 once that navigation is fixed, L4.
+
 ## Testing matrix (spec §286 — minimum required coverage)
 
 - [x] New UDISE + New PEN (Condition 1)
