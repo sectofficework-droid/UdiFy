@@ -31,6 +31,18 @@ the school's actual UDISE-operations machine, not a separate dev box)
 - PySide6: **6.11.2** (installed; real GUI launched and screenshotted
   this session, navy/orange theme confirmed rendering correctly).
 - No Node.js dependency in this project.
+- **Application Control policy blocks unsigned `.exe` files** —
+  discovered 2026-09-26: a freshly PyInstaller-built `dist/UdiFy/
+  UdiFy.exe` refuses to launch here ("An Application Control policy has
+  blocked this file"), both directly and via a Start Menu shortcut.
+  `.venv\Scripts\pythonw.exe run_udify.py` (source, windowless) launches
+  the identical app fine — `pythonw.exe` is a trusted, signed binary the
+  policy allows. **Implication for future sessions**: don't assume a
+  PyInstaller build is launchable here just because `pyinstaller` exits
+  0 — verify by actually launching it. The Start Menu shortcut
+  `UdiFy.lnk` (points at `pythonw.exe run_udify.py`) is the real,
+  working "launch UdiFy" path on this machine. See RELEASE-PLAN.md's
+  "Build"/"Deployment steps" for full detail.
 
 ## What exists on disk right now
 

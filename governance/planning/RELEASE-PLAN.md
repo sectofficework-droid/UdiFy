@@ -39,11 +39,23 @@
   2026-09-25 (TODO.md step 16). `installer.spec` at the repo root; build
   with `pyinstaller installer.spec` from an activated venv. Entry point
   is `run_udify.py` (thin wrapper around `src.app.main.main()`). Output
-  is `dist/UdiFy/` (an `UdiFy.exe` plus an `_internal/` support folder) —
-  copy the whole folder, not just the `.exe`, to the target machine.
-  Verified by actually launching the built `.exe` (not just running the
-  build step) and confirming the GUI renders and its SQLite/diagnostics
-  files are created correctly.
+  is `dist/UdiFy/` (an `UdiFy.exe` plus an `_internal/` support folder).
+- **Superseded 2026-09-26 — the packaged `.exe` does not run on the
+  actual target machine.** Rebuilding the same spec with current code
+  and launching the fresh `dist/UdiFy/UdiFy.exe` (both directly and via
+  a Start Menu shortcut) failed with "An Application Control policy has
+  blocked this file" — a Windows security policy on this machine blocks
+  unsigned/unrecognized executables, and a PyInstaller build has no code
+  signature without a certificate (real cost/process, out of scope now).
+  **Working alternative, verified**: launch from source via
+  `.venv\Scripts\pythonw.exe run_udify.py` (windowless — `pythonw.exe`
+  is already trusted by the policy) — a Start Menu shortcut (`UdiFy.lnk`)
+  now does exactly this. Deployment on this machine (and presumably any
+  machine under the same policy) therefore means keeping the project
+  source + `.venv` in place and launching via that shortcut, **not**
+  copying and running a standalone `.exe`. If a real `.exe` is wanted
+  later, it would need code-signing or an Application Control exception
+  from whoever manages this policy — neither attempted here.
 - **Chromium is not bundled.** The spec bundles Playwright's own driver
   (`playwright.utils.hooks.collect_data_files`) but deliberately does not
   bundle a full Chromium browser build (would add several hundred MB for
@@ -162,11 +174,25 @@ real credentials are configured):**
 
 ## Deployment steps
 
-TBD — expected to be "copy the packaged `.exe` + config template to the
-school machine, populate `.env`/`credentials/` locally, run." No CI/CD
-pipeline, container, or cloud deployment is in scope (single local
-desktop app). Formalize exact steps once packaging (TODO.md build-order
-step 15) exists.
+**Resolved 2026-09-26** — not the originally-expected "copy the packaged
+`.exe`" path, since that's blocked on this machine (see "Build" above).
+The actual, verified steps on this machine:
+
+1. Project source + `.venv` live at `D:\Project\UdiFy` (already the
+   case — this machine is both the development and the school's actual
+   UDISE-operations machine, per "Environments" above).
+2. `.env`/`credentials/service-account.json` populated (via the app's
+   own Settings screen or by hand) — already done for Google Sheets,
+   government portal logins still pending as of this writing.
+3. Start Menu shortcut `UdiFy.lnk` (created 2026-09-26) launches
+   `.venv\Scripts\pythonw.exe run_udify.py` with the project directory
+   as its working directory — this is what "launch UdiFy" means on this
+   machine going forward, not double-clicking a `.exe`.
+
+If UdiFy is ever deployed to a *different* machine, re-verify whether
+that machine has the same Application Control restriction before
+assuming either distribution path works — don't assume the `.exe` is
+safe to try again without checking first.
 
 ## Rollback path (recorded 2026-09-26, RELEASE gate remediation item 4)
 

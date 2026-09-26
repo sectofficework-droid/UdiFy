@@ -362,6 +362,23 @@ and mocked/fixture portal pages as the primary implementation target.
     the PLANNING phase — now rewritten top to bottom to match reality).
     51/51 tests still passing (packaging touched only import paths, not
     engine/adapter logic).
+
+    **Contradicted 2026-09-26 — rebuilding the same spec on the confirmed
+    target machine, the resulting `.exe` would not launch at all**:
+    `Start-Process` (and a direct double-click via a Start Menu shortcut)
+    failed with "An Application Control policy has blocked this file" —
+    a Windows security policy on this machine blocks unsigned/unknown
+    executables, which a freshly PyInstaller-built binary always is
+    without a code-signing certificate (out of scope, real cost/process).
+    `.venv\Scripts\pythonw.exe run_udify.py` (running from source,
+    windowless) launches the identical app successfully — `pythonw.exe`
+    is an already-trusted binary the policy allows. A Start Menu shortcut
+    (`UdiFy.lnk`) now launches the app this way instead. This means the
+    packaged-`.exe` distribution path this step believed it had verified
+    does not actually work here — either the policy was added/tightened
+    between the two sessions, or the school's actual machine was never
+    what step 16 built against. RELEASE-PLAN.md's "Build"/"Deployment
+    steps" sections updated to record the real, working path.
 17. **Stop at the Live Verification Gate** — see checklist below. Do not
     proceed to real credential configuration or controlled live
     verification without it, and do not report credentials as a blocker
