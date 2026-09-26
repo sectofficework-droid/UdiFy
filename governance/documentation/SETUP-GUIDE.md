@@ -118,6 +118,28 @@ launching the built `.exe` and confirming the GUI renders and its
 SQLite/diagnostics files are created correctly, not just that the build
 step exits 0.
 
+**2026-09-26**: on this machine, neither this build nor the one below
+launches at all without allowing it through **Smart App Control**
+(Windows Security → App & browser control) — a one-way setting (needs a
+Windows reinstall to re-enable), so that's the operator's call, not
+something to flip automatically. A Start Menu shortcut launching
+`.venv\Scripts\pythonw.exe run_udify.py` (already-trusted, signed
+binary) works regardless, with no security tradeoff — see
+RELEASE-PLAN.md's "Build" section for the full story.
+
+**Single-file build + proper installer (added 2026-09-26)**:
+```
+pyinstaller installer-onefile.spec        # -> dist\UdiFy.exe (one file)
+ISCC.exe installer.iss                    # -> dist_installer\UdiFy-Setup.exe
+```
+`ISCC.exe` is Inno Setup's compiler (`winget install JRSoftware.InnoSetup`
+if not already installed). The resulting `UdiFy-Setup.exe` is a real
+Windows installer — Start Menu entry, optional desktop shortcut, proper
+uninstaller — installing to `%LOCALAPPDATA%\Programs\UdiFy` (no admin/
+UAC needed, and genuinely writable so the app's own SQLite DB lands next
+to it correctly). See RELEASE-PLAN.md for the frozen-`PROJECT_ROOT` bug
+this depended on fixing first, and the end-to-end verification done.
+
 ## Harden
 
 - Confirm `.gitignore` blocks `.env*`, `credentials/`, `*.sqlite3`,

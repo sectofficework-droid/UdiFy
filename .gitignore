@@ -34,6 +34,10 @@ dist/
 # this one is exceptionally placed at repo root per user request 2026-09-26)
 /UdiFy.exe
 
+# Inno Setup installer output (installer.iss itself is tracked, the
+# compiled UdiFy-Setup.exe it produces is a build artifact like dist/)
+dist_installer/
+
 # SQLite local state (workflow/audit DB — never shipped, never committed)
 *.sqlite3
 *.db

@@ -209,6 +209,39 @@ reinstalling Windows) and a system-security-setting change, so left
 entirely to the user's own decision and action, never done by this
 session.
 
+**Bug found and fixed the same day**: the packaged app rendered an empty
+window (both builds) even once launchable — `src/config/settings.py`'s
+`PROJECT_ROOT = Path(__file__).resolve().parents[2]` doesn't work once
+frozen (`__file__` for a module loaded from PyInstaller's bundle isn't a
+real on-disk path), so the SQLite DB/diagnostics/`.env` all resolved to
+somewhere bogus. `src/app/mock_fixtures.py` already had the correct
+`sys._MEIPASS`-based workaround for exactly this problem for fixture
+files; `settings.py` was just never updated to match. Fixed to use
+`sys.frozen`/`sys.executable`'s directory when frozen (commit `9a929fd`)
+— confirmed working by rebuilding and having the user check the running
+window directly.
+
+**Proper installer added 2026-09-26, at user request**: `installer.iss`
+(Inno Setup — installed via `winget install JRSoftware.InnoSetup` with
+the user's explicit OK first, since installing new software is a real
+system change) builds `UdiFy-Setup.exe`, a real Windows installer with
+Start Menu entry, optional desktop shortcut, and an uninstaller
+(`unins000.exe`) registered like any normal Windows program. Installs
+to `%LOCALAPPDATA%\Programs\UdiFy` — a per-user location needing no
+admin rights/UAC prompt, chosen deliberately over Program Files so the
+app can actually write its own SQLite DB/diagnostics next to itself
+without a permissions problem (Program Files is not user-writable
+without elevation). Build with `pyinstaller installer-onefile.spec`
+then `ISCC.exe installer.iss` (path: `%LOCALAPPDATA%\Programs\Inno
+Setup 6\ISCC.exe`); output `dist_installer\UdiFy-Setup.exe` is
+git-ignored, same as other build artifacts — `installer.iss` itself is
+tracked. **Verified end-to-end**, not just "compiles": ran a real
+silent install to a throwaway directory (`/DIR=` override, never the
+real target), launched the installed copy, confirmed `udify.sqlite3`
+and `diagnostics/` were created correctly inside the install folder
+(the exact bug just fixed above), then ran the generated uninstaller
+and confirmed full removal.
+
 ## Rollback path (recorded 2026-09-26, RELEASE gate remediation item 4)
 
 Since this is a new local install with no prior production version,
