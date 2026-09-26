@@ -497,6 +497,74 @@ LIVE NATIONAL UDISE+: NOT VERIFIED
 LIVE CREDENTIALS: NOT CONFIGURED
 ```
 
+### L1 Authentication — started 2026-09-26
+
+**Status, honestly, as of this writing:**
+
+```text
+MOCK IMPLEMENTATION: COMPLETE
+MOCK TESTS: PASS (110/110)
+INTEGRATION TESTS: PASS
+LIVE GOOGLE SHEETS: VERIFIED (read-only connectivity — real find/get
+  read/write methods on GoogleSheetsRepository are still
+  NotImplementedError, deliberately not built yet — see below)
+LIVE GUJARAT UDISE: VERIFIED (login only)
+LIVE NATIONAL UDISE+: VERIFIED (login only)
+LIVE CREDENTIALS: CONFIGURED
+```
+
+**Google Sheets**: the 3 real spreadsheets were discovered to be
+uploaded `.xlsx` files in Office-compatibility mode, not native Google
+Sheets — the Sheets API can't operate on them as-is (`400: This
+operation is not supported for this document`). Converting via the
+Drive API (`files.copy` to a Sheets mimeType) hit a separate hard wall:
+**service accounts have zero Drive storage quota of their own**, so they
+cannot create new files at all, even copies. The user converted each
+file themselves in the Sheets UI (their own account/quota), producing 3
+new native-Sheets files; the service account was re-shared with each,
+`.env` updated to the new IDs. A read-only connectivity check (`spread-
+sheets().get()` on all 3, via a throwaway script — not part of the app)
+confirmed authentication and read access, with tab names matching the
+codebase's expectations exactly (PH1/PH2/PH3, IMPORT PENDING, PRIMARY/
+GENERAL). `GoogleSheetsRepository`'s actual find/read/write methods
+remain `NotImplementedError` — L1 only proves connectivity, not that
+those methods are built; that's L2/L3 work, not yet started.
+
+**Government portal logins**: real, first-ever contact with both
+portals surfaced genuine bugs neither mock fixture could have caught
+(both fixed, each confirmed by re-running against the live portal until
+it worked, not just by reasoning about the code):
+- Both real portals have a password-visibility toggle button whose
+  accessible name ambiguously substring-matched the password field's
+  own label — fixed via `input[type="password"]` (the field's real
+  semantic type) instead of label matching.
+- Both real portals have a captcha; Gujarat's entry field isn't labeled
+  "Captcha" (that's a section heading) — its real placeholder is "ENTER
+  CODE". National's "Captcha" `<label>` has no `for` attribute at all —
+  found by dumping every real `<input>`/`<label>` element, not guessing;
+  the real field is `input[name="captcha"]`.
+- Both captcha checks originally only checked the field's *visibility*,
+  which stays true whether or not the operator has typed the code — so
+  a solved captcha still read as "still blocking". Fixed to check the
+  field's *value* instead (empty = waiting on the operator; non-empty =
+  proceed — this adapter still can never judge whether a code is
+  *correct*, only the real portal can, on submission).
+- National UDISE+'s real submit button reads "Sign In", not "Login" (the
+  mock fixture's button text was apparently never checked against the
+  real portal) — now accepts either, so the mock fixture keeps working.
+
+All five fixes are in `src/portals/base.py` / `udise_gujarat/adapter.py`
+/ `udise_plus/adapter.py`, each with its own commit, each still passing
+110/110 tests (none of these paths were ever exercised by a mock
+fixture, so there was no regression risk in fixing them — but also no
+automated coverage for them beyond this manual live confirmation).
+
+**Not yet done**: L2 (read-only navigation/search on both real portals),
+L3 (one controlled test student, full real run), L4 (recovery
+scenarios), and building `GoogleSheetsRepository`'s actual read/write
+methods. Do not treat L1 passing as license to process real students —
+per spec, L2/L3/L4 come first, in order.
+
 ## Testing matrix (spec §286 — minimum required coverage)
 
 - [x] New UDISE + New PEN (Condition 1)
@@ -846,23 +914,27 @@ declined, same reasoning as file-upload/dependent-dropdown above).
 
 ## Next trigger
 
-**TESTING gate closed ("test it", 2026-09-26).** 102/102 tests passing.
-Still **stopped at the Live Verification Gate (2026-09-25)** — see the
-report template above ("Live Verification Gate" section) for the exact
-status. The mock-first build order (steps 1-16) is complete; step 17
-itself (controlled live verification) requires the user present, real
-credentials configured, and explicit authorization — none of which are
-in scope for this session per the mock-first decision.
+**TESTING gate closed ("test it", 2026-09-26).** 110/110 tests passing.
+RELEASE-gate remediation items are all resolved (see that section above)
+— **awaiting the explicit "approve release" trigger phrase again**,
+never silently assumed just because the blocking items cleared.
+
+**Live Verification Gate**: `UDIFY_ENVIRONMENT=LIVE` (user's explicit
+direction, "come real mode", 2026-09-26), real credentials configured,
+**L1 Authentication passed** for Google Sheets (read-only) and both
+government portals (login) — see "L1 Authentication" above for the full,
+honest account including 5 real adapter bugs found and fixed live. This
+proceeded independently of the RELEASE gate, consistent with this
+project's own recorded plan (BOOTSTRAP.md).
 
 Awaiting one of:
-- **"approve release"** (again) — once the 4 remaining RELEASE-gate
-  remediation items above are addressed.
-- Answers to the RELEASE gate's open items 2/3/5 above (data-retention
-  policy, target-machine smoke test, GCP provisioning) — or a rollback
-  note for item 4.
-- Real Google Sheets / Gujarat UDISE / National UDISE+ credentials, to
-  begin L1-L4 controlled live verification per the phase sequence above.
+- **"approve release"** — all remediation items are resolved; this is
+  now just the trigger phrase itself.
+- Direction to continue Live Verification: **L2** (read-only navigation/
+  search on both real portals — no writes), building
+  `GoogleSheetsRepository`'s actual read/write methods (still
+  `NotImplementedError`, needed before L2/L3 can do anything beyond
+  connectivity), or **L3** (one controlled real test student).
 - Specific follow-up work against any item left unchecked in the mock
   scenario checklist / testing matrix / acceptance criteria above (all
-  explicitly and honestly marked, not silently skipped — carried to
-  backlog at TESTING-gate closure rather than silently waved through).
+  explicitly and honestly marked, not silently skipped).
