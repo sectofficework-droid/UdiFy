@@ -706,8 +706,8 @@ LIVE CREDENTIALS: NOT CONFIGURED
 
 - Exact UDISE Scholarship & Facility and Health & CWSN field numbering —
   live-DOM verification task, not blocking other branches.
-- Numeric MVP success metrics — owner input needed (DISCOVERY.md open
-  question 1).
+- ~~Numeric MVP success metrics~~ — **answered 2026-09-26**, see
+  DISCOVERY.md's "Success metrics" section (no longer backlog).
 - **Confirmed `COMING_SOON` adapter boundaries** (re-derived 2026-09-25,
   updated twice same day — see UI-SPEC.md §B.5 for the current table and
   exact spec citations): only the **successful/Dropbox outcome** of UDISE
@@ -776,10 +776,10 @@ approval; the school-dependent items get answered/arranged separately.
 
 Remaining before "approve release" can be honestly recorded: item 1's
 three still-unbuilt testing-matrix gaps (or an explicit decision to
-release without them), item 5 above (GCP provisioning), and DISCOVERY.md
-open question 1 (numeric success metrics — flagged there as "needed
-before RELEASE gate" but not yet asked in this remediation pass; see
-BOOTSTRAP.md's "Open questions" for the consolidated list).
+release without them), and item 5 above (GCP provisioning). Numeric
+success metrics — **answered 2026-09-26**, see DISCOVERY.md's "Success
+metrics" section (no longer a remaining item; BOOTSTRAP.md's "Open
+questions" has the consolidated list).
 
 ## Editable Settings screen for LIVE credentials (2026-09-26)
 

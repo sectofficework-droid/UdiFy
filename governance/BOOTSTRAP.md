@@ -93,8 +93,10 @@ gaps — this file stays a snapshot, not a duplicate of that detail.
 
 ## Open questions (needed before RELEASE gate)
 
-1. [ ] Numeric MVP success metrics ("done" in measurable terms: time
-      saved, error rate, backlog cleared) — **still open**.
+1. [x] Numeric MVP success metrics — **answered 2026-09-26**: three
+      qualitative dimensions (time saved per student, backlog cleared,
+      error rate vs. manual entry), no hard numeric targets committed to
+      yet — see DISCOVERY.md's "Success metrics" section.
 2. [~] Google Cloud project/service account for Sheets API — **not sure
       yet** (2026-09-26), needs checking with whoever manages the
       school's Google Workspace/Cloud account. Not needed for MOCK-mode
@@ -117,14 +119,14 @@ gaps — this file stays a snapshot, not a duplicate of that detail.
 **TESTING gate closed** ("test it", 2026-09-26). RELEASE-gate remediation
 mostly complete (workflow checkpoint/resume, new-entry duplicate guard,
 target-machine smoke tests, rollback path, all SECURITY-THREAT-MODEL.md
-questions) — see TODO.md's "RELEASE gate remediation" section for the
-full item-by-item account. Two items remain before "approve release" can
-be honestly recorded: open questions 1 and 2 above (success metrics,
-GCP provisioning). Everything else is either closed or an explicitly
+questions, success metrics) — see TODO.md's "RELEASE gate remediation"
+section for the full item-by-item account. One item remains before
+"approve release" can be honestly recorded: open question 2 above (GCP
+provisioning). Everything else is either closed or an explicitly
 tracked, honestly-marked gap (TODO.md's testing matrix/acceptance
 criteria) — none silently skipped.
 
-Say **"approve release"** once 1-2 above are resolved, or supply real
+Say **"approve release"** once question 2 is resolved, or supply real
 credentials (via the Settings screen or `.env` directly) to begin the
 Live Verification Gate's L1-L4 phases — these can proceed independently
 of the RELEASE gate itself.

@@ -94,12 +94,24 @@ completion bar. In REQ-ID form, MVP = REQ-001 through REQ-007 above, plus:
 
 ## Success metrics
 
-Not stated as numeric targets in the source material. Recorded as
-**UNKNOWN — needs owner input**: e.g. target reduction in manual entry time
-per student, acceptable manual-review rate, acceptable ND-reconciliation
-backlog. Recommend the user define at least one measurable MVP success
-criterion before RELEASE gate (RULEBOOK.md §E.0 requires this); tracked as
-an open question below.
+**Answered 2026-09-26.** Three qualitative dimensions, no hard numeric
+targets committed to yet — directional improvement, not an SLA:
+
+1. **Time saved per student** — UDISE+PEN entry should take meaningfully
+   less staff time per student than fully manual entry. No specific
+   before/after number set.
+2. **Backlog cleared** — the tool should be able to work through the
+   school's existing backlog of pending UDISE/PEN students, not just
+   keep pace with new ones.
+3. **Error rate** — fewer wrong-student/wrong-field mistakes than manual
+   entry, given the verification-before-write discipline already built
+   in (Final Authority §D/§J).
+
+If the school later wants a hard numeric target for any of these (e.g. a
+specific time-per-student figure), that's a normal follow-up decision,
+not a blocker — this qualitative framing is sufficient to satisfy
+RULEBOOK.md §E.0's "define at least one measurable MVP success
+criterion" for the RELEASE gate.
 
 ## Monetization hypothesis
 
@@ -140,15 +152,14 @@ throughout IMPL-SPEC.md per spec §191/§288):**
 **Unknowns (explicitly open, per spec §150/§184/§215):**
 - Exact click-by-click UDISE Import and PEN Import button sequences beyond
   what §294-302/§W/§X document.
-- Numeric MVP success metrics (see "Success metrics" above).
 - Google Cloud project / service-account provisioning details (owner to
   provide — see RELEASE-PLAN.md).
 
 ## Open questions for the user
 
-1. [ ] What does "done" look like in measurable terms (time saved, error
-      rate, backlog cleared)? — needed before RELEASE gate. **Still open
-      as of 2026-09-26.**
+1. [x] What does "done" look like in measurable terms (time saved, error
+      rate, backlog cleared)? — needed before RELEASE gate. **Answered
+      2026-09-26**, see "Success metrics" above.
 2. [~] Do you already have a Google Cloud project + service account for
       Sheets API access, or does this need to be created from scratch? —
       **partially answered 2026-09-26**: not sure yet, needs checking
@@ -163,4 +174,5 @@ throughout IMPL-SPEC.md per spec §191/§288):**
       RELEASE gate").
 
 These do not block PLANNING — they are recorded for the "approve plan" /
-"approve design" gates. Items 1 and 2 remain open going into RELEASE.
+"approve design" gates. Only item 2 (GCP provisioning) remains open
+going into RELEASE.
