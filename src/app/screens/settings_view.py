@@ -73,10 +73,19 @@ class SettingsScreen(QWidget):
         form.addRow(QLabel("<b>Google Sheets</b>"), QLabel(""))
 
         sa_row = QHBoxLayout()
-        self.service_account_label = QLabel(
+        sa_row.setContentsMargins(0, 0, 0, 0)
+        # A read-only QLineEdit, not a word-wrapped QLabel: a wrapping
+        # QLabel nested in a QHBoxLayout inside a QFormLayout row doesn't
+        # reliably compute its own height (Qt height-for-width doesn't
+        # propagate through that nesting) — it can collapse to a few
+        # pixels tall while still trying to paint full-height text,
+        # rendering as garbled/overlapping glyphs. A QLineEdit has a
+        # fixed single-line height regardless of content, sidestepping
+        # the whole problem, and its text stays selectable/copyable.
+        self.service_account_label = QLineEdit(
             self._service_account_path or "— not configured —"
         )
-        self.service_account_label.setWordWrap(True)
+        self.service_account_label.setReadOnly(True)
         browse_btn = QPushButton("Browse…")
         browse_btn.setObjectName("Secondary")
         browse_btn.clicked.connect(self._browse_service_account)
@@ -84,6 +93,15 @@ class SettingsScreen(QWidget):
         sa_row.addWidget(browse_btn)
         sa_wrap = QWidget()
         sa_wrap.setLayout(sa_row)
+        # A custom composite widget (QWidget + manual QHBoxLayout) sitting
+        # in a QFormLayout row doesn't reliably get a correct sizeHint
+        # once the row stretches very wide (e.g. a maximized window) —
+        # both children's geometry could collapse/miscalculate, which is
+        # what was rendering as garbled text and a malformed "Browse…"
+        # button. Pinning the wrapper to its children's natural single-
+        # line height removes the ambiguity Qt was getting wrong; nothing
+        # here actually needs a dynamic height.
+        sa_wrap.setFixedHeight(self.service_account_label.sizeHint().height())
         form.addRow("Service account key (.json)", sa_wrap)
 
         self.ogr_id = QLineEdit(settings.sheets.spreadsheet_id_ogr or "")
