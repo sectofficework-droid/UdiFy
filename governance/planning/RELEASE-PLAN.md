@@ -133,6 +133,35 @@ pipeline, container, or cloud deployment is in scope (single local
 desktop app). Formalize exact steps once packaging (TODO.md build-order
 step 15) exists.
 
+## Rollback path (recorded 2026-09-26, RELEASE gate remediation item 4)
+
+Since this is a new local install with no prior production version,
+"rollback" has two parts:
+
+1. **Build rollback.** Keep the previous working `dist/UdiFy/` folder
+   (the whole folder, not just the `.exe` — see "Build" above) archived
+   under a version-labeled path (e.g. `releases/UdiFy-<date-or-tag>/`)
+   before overwriting it with a new build. If a new build misbehaves on
+   the school's machine, restore the previous folder and relaunch — no
+   installer/uninstaller step exists to reverse, since this is a
+   one-folder copy, not an installed application.
+2. **Operational rollback.** If the tool itself must be pulled entirely
+   (not just rolled back a version) — e.g. a MOCK/LIVE mixing bug, or an
+   automation error discovered against the real portals — the fallback
+   is manual entry: the school's staff continue entering UDISE/PEN data
+   directly on the government portals as they did before this project
+   existed. Nothing about this tool's design blocks that fallback (spec
+   §AF: the OGR/UDISE/PEN Google Sheets remain the source of truth, never
+   this tool's local SQLite state), so no data migration or cleanup step
+   is needed to revert to manual operation — simply stop running the
+   tool. `pen_case_events`/`request_cases` rows already recorded stay as
+   an audit trail of what the tool did before being pulled; they don't
+   need to be undone.
+
+No numbered release has shipped yet, so there is no prior version to
+name here — this section records the *procedure*, to be followed from
+the first real release onward.
+
 ## Release criteria (gate for "approve release")
 
 - [ ] All TESTING-phase acceptance criteria (TODO.md) pass with evidence.
@@ -141,10 +170,7 @@ step 15) exists.
       if any is knowingly deferred).
 - [ ] Smoke tests above pass on the actual target machine, not only a
       developer machine.
-- [ ] Rollback path confirmed: since this is a new local install with no
-      prior production version, "rollback" means keeping the previous
-      working `.exe` build available and being able to revert to manual
-      entry if the tool must be pulled — record this explicitly once a
-      first release exists.
+- [x] Rollback path confirmed — **closed 2026-09-26**, see "Rollback
+      path" above.
 - [ ] BOOTSTRAP.md and this file both reflect the real, verified state (no
       stale TBDs presented as done).

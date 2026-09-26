@@ -61,7 +61,7 @@ class Condition2Engine:
         return run_with_recovery(
             _impl, conn=self.conn, environment=self.environment,
             workflow="CONDITION_2_NEW_UDISE_PEN_IMPORT", run_id=run_id,
-            student_id=student.student_id,
+            student_id=student.student_id, student=student,
         )
 
     def _run_impl(self, student: Student, run_id: str) -> Condition2Result:
@@ -74,7 +74,7 @@ class Condition2Engine:
         )
         log_state(_logger, run_id, student.student_id, "DETERMINE_ENTRY_CONDITION", condition=2)
 
-        uid = run_udise_new_branch(self.gujarat, self.sheets, student)
+        uid = run_udise_new_branch(self.gujarat, self.sheets, self.conn, student, run_id=run_id)
         log_state(_logger, run_id, student.student_id, "VERIFY_UDISE", uid=uid)
 
         pen_import_info = run_pen_import_branch(

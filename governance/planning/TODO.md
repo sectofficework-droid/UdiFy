@@ -507,17 +507,37 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] PEN validation failure — same file; `run_pen_new_branch()` refuses
       to proceed without a PEN sheet row, before any National portal
       action.
-- [ ] Session timeout → pause + resume from checkpoint — the "pause and
-      classify" half exists (`RecoverableAutomationError`,
-      `tests/unit/test_resilience.py`); "resume from a persisted
-      checkpoint" does not — `workflow_runs.checkpoint_json` exists in
-      the schema but nothing writes or reads it yet.
-- [ ] Browser crash → DB state persisted, re-verify before repeating —
-      `BrowserOrNetworkFailureError` detects and diagnoses a real crash
-      (tested against an actually-closed browser, not just a simulated
-      exception — `tests/integration/test_session_timeout_scenarios.py`);
-      "re-verify before repeating" as an actual retry flow is still not
-      built.
+- [~] Session timeout → pause + resume from checkpoint — **partially
+      closed 2026-09-26**: the "pause and classify" half already existed
+      (`RecoverableAutomationError`, `tests/unit/test_resilience.py`);
+      persisting a checkpoint now also exists — new `src/db/
+      workflow_runs.py` (`start_run`/`patch_checkpoint`/`complete_run`/
+      `find_incomplete_run_with_checkpoint_flag`), wired into
+      `run_with_recovery()` (every condition-engine run gets a
+      `workflow_runs` row, left incomplete on any exception path) and
+      into the New UDISE/New PEN branches (checkpointed mid-branch
+      progress — `udise_new_uid`, `pen_new_initialized`, etc.). What's
+      still missing: genuinely resuming a *portal session* mid-timeout
+      (re-logging in and picking back up where the timeout occurred) —
+      only the New UDISE branch can resume past a checkpoint today (see
+      "No blind duplicate submissions" below), and only because the next
+      step it needs (`open_student_profile`) is an already-confirmed,
+      unconditionally-run adapter method, not new navigation.
+- [x] Browser crash → DB state persisted, re-verify before repeating —
+      **closed 2026-09-26**. `BrowserOrNetworkFailureError` already
+      detected and diagnosed a real crash (tested against an actually-
+      closed browser — `tests/integration/test_session_timeout_
+      scenarios.py`); "DB state persisted" is now literally true (the
+      `workflow_runs` row from the interrupted run stays queryable and
+      incomplete, `tests/unit/test_workflow_runs.py`), and "re-verify
+      before repeating" is enforced for the two one-shot creation actions
+      that used to have no guard at all: `run_udise_new_branch`/
+      `run_pen_new_branch` now check for a prior interrupted attempt
+      before clicking "ADD NEW STUDENT"/"Add New Student" again
+      (`tests/integration/test_new_entry_duplicate_guard.py`) — never
+      blindly repeating a one-shot portal-creation click, per spec's "no
+      blind duplicate submissions" (see the acceptance-criteria item
+      below, now fully closed).
 - [ ] Save succeeded but confirmation not seen → verify state, don't
       repeat — the underlying principle (never treat an unverified
       action as success) is enforced everywhere via
@@ -528,10 +548,22 @@ LIVE CREDENTIALS: NOT CONFIGURED
       simulate this (`simulate_write_failure`) but no engine-level
       recovery test exercises "portal already succeeded, only retry the
       sheet write" end-to-end.
-- [ ] File upload failure — no file-upload functionality is implemented
-      at all yet (not reached by any condition built so far).
-- [ ] Dependent dropdown delay — no explicit wait-for-dependent-option
-      handling beyond Playwright's own default actionability waits.
+- [ ] File upload failure — still no file-upload functionality wired into
+      any condition (not reached by any confirmed screen so far).
+      **2026-09-26**: added generic, portal-agnostic helpers
+      (`src/portals/base.py`: `set_file_input()`) tested in isolation
+      against a synthetic fixture (`tests/integration/
+      test_generic_portal_helpers.py`) — deliberately NOT wired into any
+      adapter or branch, since no recording confirms a file-upload screen
+      on either portal (RULEBOOK §J14: no invented selectors). Ready to
+      plug in once one is confirmed.
+- [ ] Dependent dropdown delay — still no distinct handling wired into
+      any condition; Playwright's default actionability waits have
+      covered every fixture tested so far. **2026-09-26**: same treatment
+      as file upload above — a generic `wait_for_dependent_option()`
+      helper exists and is tested (`tests/integration/
+      test_generic_portal_helpers.py`), unwired pending a confirmed
+      screen.
 - [x] Manual consent checkpoint (Aadhaar) — structurally can never
       auto-click "I Agree", tested
       (`test_aadhaar_consent_pauses_and_is_never_auto_clicked`)
@@ -544,18 +576,28 @@ LIVE CREDENTIALS: NOT CONFIGURED
       isn't actually at `MANUAL_REVIEW`. Full open→action→resolve chain
       tested end to end starting from ND reconciliation's real ambiguous-
       match path (`tests/integration/test_manual_review_resolution.py`).
-- [~] Resume after interruption — **partially closed 2026-09-25**: a
-      between-branch interruption (crash/kill after the UDISE branch
-      verified GREEN but before the PEN branch ran) now resumes
+- [~] Resume after interruption — **partially closed 2026-09-25, extended
+      2026-09-26**: a between-branch interruption (crash/kill after the
+      UDISE branch verified GREEN but before the PEN branch ran) resumes
       correctly without repeating the completed portal action, as a
       direct consequence of `entry_router.py`'s sheet-state detection —
       re-determining the condition against the post-interruption sheet
       state naturally routes to "Condition 3" (PEN-only), tested end to
       end (`tests/integration/test_resume_after_interruption.py`).
-      Resuming **mid-branch** (e.g. a crash halfway through the New PEN
-      form's multiple steps) is a different, larger problem this does
-      not solve — that would need the `workflow_runs.checkpoint_json`
-      persistence mechanism, still unbuilt.
+      **2026-09-26**: mid-branch resume is now solved for the one case
+      where it's safe without inventing portal navigation — a crash
+      *inside* `run_udise_new_branch` after the UID was obtained but
+      before the sheet write resumes using the checkpointed UID rather
+      than re-clicking "ADD NEW STUDENT"
+      (`test_udise_new_branch_resumes_using_checkpointed_uid_without_
+      reclicking_add_new_student`). Mid-branch resume for `run_pen_new_
+      branch` (a crash partway through the multi-tab profile fill) is
+      still not solved — no recording confirms a way to reopen an
+      in-progress National UDISE+ PEN entry, so that case detects the
+      interruption and routes to manual review rather than guessing
+      (`test_pen_new_branch_raises_on_prior_interrupted_attempt_never_
+      reinitializes`), which is the honest boundary of what's
+      automatable without new evidence (spec §AH).
 
 ## Acceptance criteria (spec §287 — "fills forms" is not "done")
 
@@ -588,9 +630,16 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - [x] Correct field mapping (no silent misalignment) —
       `field_mapping.py`, exercised end-to-end in every condition test
       (exact values asserted, not just "no exception")
-- [ ] Correct dependent-dropdown handling — no distinct handling beyond
-      default Playwright waits; not separately verified.
-- [ ] Safe file uploads — no file-upload functionality exists yet.
+- [ ] Correct dependent-dropdown handling — no distinct handling wired
+      into any condition beyond default Playwright waits; not separately
+      verified against a real portal screen. **2026-09-26**: a generic,
+      tested `wait_for_dependent_option()` helper now exists
+      (`src/portals/base.py`) but is deliberately unwired — see the
+      matching testing-matrix item above for why.
+- [ ] Safe file uploads — no file-upload functionality is wired into any
+      condition. **2026-09-26**: same treatment — a generic, tested
+      `set_file_input()` helper exists (`src/portals/base.py`), unwired
+      pending a confirmed screen.
 - [x] Visible/headed browser operation (never headless for the government
       portal without explicit authorized exception) — every launch site
       (adapters' own tests, `run_worker.py`, both GUI batch workers)
@@ -609,8 +658,14 @@ LIVE CREDENTIALS: NOT CONFIGURED
       never treats `NA`/`ND` as a real PEN)
 - [ ] Reliable sheet synchronization — no distinct synchronization
       mechanism beyond direct read/write calls; not separately verified.
-- [ ] Retry/resume correctness — no retry/resume mechanism is built yet
-      (same gap as "Session timeout"/"Resume after interruption" above).
+- [~] Retry/resume correctness — **partially closed 2026-09-26**: see
+      "Session timeout"/"Resume after interruption" above — the New
+      UDISE branch now genuinely resumes past a checkpoint, and both New
+      UDISE/New PEN branches detect an interrupted prior attempt before
+      retrying. The three still-open testing-matrix retry gaps (save-
+      succeeded-unconfirmed, sheet-write-failure-after-portal-success,
+      full mid-branch resume for the National UDISE+ multi-tab profile
+      fill) remain unbuilt.
 - [x] Manual review flow works end-to-end — see the matching item above
       (closed 2026-09-25).
 - [x] Logging meets RULEBOOK.md §L bar (diagnosable without asking the
@@ -632,12 +687,15 @@ LIVE CREDENTIALS: NOT CONFIGURED
       `generate_pen_release_request()` (3 tests,
       `tests/integration/test_duplicate_request_protection.py`), on top
       of `MockSheetsRepository`'s existing duplicate-*write* prevention.
-      New-UDISE/New-PEN *initialization* (`run_udise_new_branch`/
-      `run_pen_new_branch`) has no equivalent guard yet — a second call
-      would attempt a second "ADD NEW STUDENT"/"Add New Student" click;
-      lower risk in practice since both are one-shot creation actions
-      inside a single run, not a separately-resumable request, but not
-      explicitly tested either.
+      **Extended 2026-09-26** to New-UDISE/New-PEN *initialization*: new
+      `src/db/workflow_runs.py` (`find_incomplete_run_with_checkpoint_
+      flag`) lets `run_udise_new_branch()`/`run_pen_new_branch()` detect
+      a previous interrupted attempt before clicking "ADD NEW STUDENT"/
+      "Add New Student" again. UDISE resumes using the checkpointed UID
+      when one was already obtained; PEN always raises for manual review
+      (no confirmed way to reopen an in-progress PEN entry) — neither
+      ever blindly re-clicks the one-shot creation button. 3 tests
+      (`tests/integration/test_new_entry_duplicate_guard.py`).
 - [x] `MOCK_SUCCESS` can never be written as `LIVE_VERIFIED_SUCCESS`, or
       cause a real spreadsheet write, or a claim of government completion
       (decision 2026-09-25) — see step 12's note: structurally enforced
@@ -666,9 +724,40 @@ LIVE CREDENTIALS: NOT CONFIGURED
 - Any other portal behavior beyond the nine analyzed recordings — stays
   `COMING_SOON` / `MANUAL_REQUIRED` until new evidence arrives (spec §AH).
 
+## RELEASE gate remediation (2026-09-26)
+
+"approve release" was said, but `RELEASE-PLAN.md`'s own release-criteria
+checklist had 5 real unmet items — not marked approved outright.
+User decision: resolve what's resolvable now, in code, before recording
+approval; the school-dependent items get answered/arranged separately.
+
+1. "All TESTING-phase acceptance criteria pass with evidence" —
+   **materially strengthened, not fully closed**: closed the New-UDISE/
+   New-PEN no-blind-duplicate-submission gap and added real checkpoint/
+   resume for the UDISE branch (workflow_runs, see the testing-matrix and
+   acceptance-criteria updates above, 12 new tests, 102/102 project-wide).
+   Explicitly declined to build file-upload/dependent-dropdown handling
+   into any real branch (no recording confirms either screen — would
+   have meant inventing selectors, RULEBOOK §J14) — added generic, tested,
+   unwired helpers instead. Three testing-matrix items remain genuinely
+   unbuilt: save-succeeded-but-unconfirmed retry, sheet-write-failure-
+   after-portal-success recovery, and full mid-branch resume for the
+   National UDISE+ multi-tab profile fill.
+2. SECURITY-THREAT-MODEL.md data-retention open question — still open,
+   needs the school's answer or an explicit accepted-risk note.
+3. Smoke tests on the actual target machine — still not done, needs the
+   school's machine.
+4. Rollback path — still not recorded in `RELEASE-PLAN.md`.
+5. DISCOVERY.md open question #2 (Google Cloud project/service-account
+   provisioning) — still open, needs the school's answer.
+
+User said they will answer/arrange items 2, 3, and 5 directly (not
+recorded as accepted risk). Items 2, 3, 4, 5 remain before "approve
+release" can be honestly recorded as passed.
+
 ## Next trigger
 
-**TESTING gate closed ("test it", 2026-09-26).** 90/90 tests passing.
+**TESTING gate closed ("test it", 2026-09-26).** 102/102 tests passing.
 Still **stopped at the Live Verification Gate (2026-09-25)** — see the
 report template above ("Live Verification Gate" section) for the exact
 status. The mock-first build order (steps 1-16) is complete; step 17
@@ -677,8 +766,11 @@ credentials configured, and explicit authorization — none of which are
 in scope for this session per the mock-first decision.
 
 Awaiting one of:
-- **"approve release"** — to open the RELEASE gate (checklist, rollback,
-  monitoring, production readiness).
+- **"approve release"** (again) — once the 4 remaining RELEASE-gate
+  remediation items above are addressed.
+- Answers to the RELEASE gate's open items 2/3/5 above (data-retention
+  policy, target-machine smoke test, GCP provisioning) — or a rollback
+  note for item 4.
 - Real Google Sheets / Gujarat UDISE / National UDISE+ credentials, to
   begin L1-L4 controlled live verification per the phase sequence above.
 - Specific follow-up work against any item left unchecked in the mock

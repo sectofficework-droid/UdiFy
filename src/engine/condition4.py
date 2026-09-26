@@ -62,7 +62,7 @@ class Condition4Engine:
         return run_with_recovery(
             _impl, conn=self.conn, environment=self.environment,
             workflow="CONDITION_4_UDISE_IMPORT_PEN_IMPORT", run_id=run_id,
-            student_id=student.student_id,
+            student_id=student.student_id, student=student,
         )
 
     def _run_impl(

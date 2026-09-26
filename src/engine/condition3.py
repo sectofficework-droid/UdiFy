@@ -82,7 +82,7 @@ class Condition3Engine:
         return run_with_recovery(
             _impl, conn=self.conn, environment=self.environment,
             workflow="CONDITION_3_UDISE_IMPORTED_NEW_PEN", run_id=run_id,
-            student_id=student.student_id,
+            student_id=student.student_id, student=student,
         )
 
     def _run_impl(self, student: Student, run_id: str, *, section: str) -> Condition3Result:
@@ -98,7 +98,9 @@ class Condition3Engine:
         uid = self._verify_udise_precondition(student)
         log_state(_logger, run_id, student.student_id, "VERIFY_UDISE_PRECONDITION", uid=uid)
 
-        pen_value = run_pen_new_branch(self.national, self.sheets, student, section=section)
+        pen_value = run_pen_new_branch(
+            self.national, self.sheets, self.conn, student, run_id=run_id, section=section,
+        )
         log_state(_logger, run_id, student.student_id, "VERIFY_PEN", pen=pen_value)
 
         log_state(_logger, run_id, student.student_id, "UPDATE_SHEETS")

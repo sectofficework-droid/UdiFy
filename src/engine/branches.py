@@ -12,6 +12,7 @@ import sqlite3
 
 from src.db.request_cases import create_request_case, find_open_request_case
 from src.db.students import upsert_student
+from src.db.workflow_runs import find_incomplete_run_with_checkpoint_flag, patch_checkpoint
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.engine.field_mapping import (
     pen_row_to_enrolment_profile_fields,
@@ -55,19 +56,59 @@ def write_and_verify(sheets: StudentSheetRepository, row_ref, column: str, value
 
 # ============================= UDISE branches =============================
 def run_udise_new_branch(
-    gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository, student: Student
+    gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository,
+    conn: sqlite3.Connection, student: Student, *, run_id: str,
 ) -> str:
-    """New UDISE Entry (spec §13-32, §163, §W). Returns the generated UID."""
+    """New UDISE Entry (spec §13-32, §163, §W). Returns the generated UID.
+
+    No blind duplicate submissions (spec acceptance criteria): "ADD NEW
+    STUDENT" is a one-shot portal action, so before issuing it this checks
+    for a previous interrupted attempt for the same student
+    (`workflow_runs`, spec §13). If that attempt already obtained a UID,
+    this resumes using it — `open_student_profile` onward runs
+    unconditionally on every call anyway, so skipping straight to it isn't
+    new/invented navigation, just reusing an already-confirmed value. If
+    no UID was recorded, whether the portal-side click actually went
+    through is unknown, so this refuses to guess and raises for manual
+    review rather than risk creating a second student record.
+    """
     if student.udise_row is None:
         raise StudentIdentityError(f"{student.student_id!r} has no UDISE sheet row")
+
+    prior = find_incomplete_run_with_checkpoint_flag(
+        conn, student_id=student.student_id, flag_key="udise_new_entered",
+    )
+    resumed_uid = prior.checkpoint.get("udise_new_uid") if prior else None
+    if prior is not None and not resumed_uid:
+        raise BranchError(
+            f"{student.student_id!r}: a previous UDISE new-entry attempt "
+            f"(run {prior.run_id}) was interrupted before a UID was "
+            "confirmed — whether 'ADD NEW STUDENT' actually reached the "
+            "Gujarat UDISE portal is unknown from here, and this will not "
+            "resubmit blindly (spec: no blind duplicate submissions). "
+            "Manual review required: check the portal directly for this "
+            "student before retrying."
+        )
+
     udise_row = sheets.get_row_values(student.udise_row)
     birth_details = udise_row_to_birth_details(udise_row)
     cts_details = udise_row_to_cts_details(udise_row)
 
-    gujarat.open_student_new_entry()
-    gujarat.submit_manual_birth_details(birth_details)
-    gujarat.submit_cts_details(cts_details)
-    uid = gujarat.read_generated_uid(cts_details.student_name)
+    if resumed_uid:
+        log_event(
+            _logger, logging.INFO,
+            "UDISE new-entry: resuming after interruption with the "
+            "previously-obtained UID, not resubmitting ADD NEW STUDENT",
+            student_id=student.student_id, uid=resumed_uid, prior_run_id=prior.run_id,
+        )
+        uid = resumed_uid
+    else:
+        patch_checkpoint(conn, run_id=run_id, patch={"udise_new_entered": True})
+        gujarat.open_student_new_entry()
+        gujarat.submit_manual_birth_details(birth_details)
+        gujarat.submit_cts_details(cts_details)
+        uid = gujarat.read_generated_uid(cts_details.student_name)
+        patch_checkpoint(conn, run_id=run_id, patch={"udise_new_uid": uid})
 
     gujarat.open_student_profile(cts_details.student_name)
     gujarat.open_tab("Personal")
@@ -163,21 +204,47 @@ def run_udise_import_branch(
 
 # ============================== PEN branches ==============================
 def run_pen_new_branch(
-    national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository, student: Student,
-    *, section: str = "A",
+    national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository,
+    conn: sqlite3.Connection, student: Student, *, run_id: str, section: str = "A",
 ) -> str:
     """New PEN Entry (spec §34-53, §164, §Y). Returns "ND" on success —
     spec §54/§81/§128.3: ND + GREEN is a valid completed state.
 
     Raises AutomationPausedForUser if the Aadhaar consent dialog appears
     — this branch never clicks "I Agree" itself.
+
+    No blind duplicate submissions: "Add New Student" is a one-shot
+    portal action. Unlike the UDISE branch above, no recording confirms a
+    way to reopen an in-progress National UDISE+ PEN entry, so a previous
+    interrupted attempt for this student always raises for manual review
+    here rather than resubmitting — this can only detect and block, not
+    auto-resume (spec: no blind duplicate submissions; RULEBOOK §J14: no
+    invented portal navigation).
     """
     if student.pen_row is None:
         raise StudentIdentityError(f"{student.student_id!r} has no PEN sheet row")
+
+    prior = find_incomplete_run_with_checkpoint_flag(
+        conn, student_id=student.student_id, flag_key="pen_new_entered",
+    )
+    if prior is not None:
+        raise BranchError(
+            f"{student.student_id!r}: a previous New PEN Entry attempt "
+            f"(run {prior.run_id}) was interrupted after starting — whether "
+            "'Add New Student' actually reached the National UDISE+ portal "
+            "is unknown from here, and this adapter has no confirmed way to "
+            "reopen an in-progress PEN entry, so it will not resubmit "
+            "automatically (spec: no blind duplicate submissions). Manual "
+            "review required: check the portal directly for this student "
+            "before retrying."
+        )
+
     pen_row = sheets.get_row_values(student.pen_row)
     init = pen_row_to_new_student_init(pen_row, class_name=student.class_name, section=section)
 
+    patch_checkpoint(conn, run_id=run_id, patch={"pen_new_entered": True})
     national.initialize_new_student(init)
+    patch_checkpoint(conn, run_id=run_id, patch={"pen_new_initialized": True})
     national.go_to_fill_general_profile()
     national.fill_general_profile(pen_row_to_general_profile_fields(pen_row))
     national.proceed_from_general_profile()

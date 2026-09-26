@@ -53,7 +53,9 @@ def test_missing_udise_row_blocks_udise_branch_before_any_portal_action():
 
     student = _student(udise_row=None)
     with pytest.raises(StudentIdentityError, match="UDISE"):
-        run_udise_new_branch(gujarat=None, sheets=None, student=student)  # type: ignore[arg-type]
+        run_udise_new_branch(
+            gujarat=None, sheets=None, conn=None, student=student, run_id="test-run",
+        )  # type: ignore[arg-type]
 
 
 def test_missing_pen_row_blocks_pen_branch_before_any_portal_action():
@@ -63,4 +65,6 @@ def test_missing_pen_row_blocks_pen_branch_before_any_portal_action():
 
     student = _student(pen_row=None)
     with pytest.raises(StudentIdentityError, match="PEN"):
-        run_pen_new_branch(national=None, sheets=None, student=student)  # type: ignore[arg-type]
+        run_pen_new_branch(
+            national=None, sheets=None, conn=None, student=student, run_id="test-run",
+        )  # type: ignore[arg-type]

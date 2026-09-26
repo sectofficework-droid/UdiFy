@@ -10,6 +10,9 @@ from __future__ import annotations
 
 import re
 from enum import Enum
+from pathlib import Path
+
+from playwright.sync_api import Page, expect
 
 
 def ci_exact(text: str) -> re.Pattern[str]:
@@ -62,3 +65,40 @@ class AutomationPausedForUser(PortalError):
     def __init__(self, reason: str, checkpoint: str):
         super().__init__(reason)
         self.checkpoint = checkpoint
+
+
+# ===================== Generic, portal-agnostic helpers =====================
+# Neither of these is wired into any condition branch or adapter method.
+# No source recording demonstrates a file-upload screen or a dependent/
+# cascading-dropdown delay on either portal (TODO.md testing-matrix gaps:
+# "Safe file uploads", "Correct dependent-dropdown handling") — inventing
+# selectors for a screen nobody has seen would violate the same rule that
+# keeps every other selector in these adapters role/label/exact-text-based
+# from an actual recording (Final Authority §B; RULEBOOK §J14: no invented
+# scope). These exist so a real adapter method can be built quickly, once
+# a recording confirms one, without re-deriving the Playwright mechanics —
+# they take a `Page` and confirmed label text, same as every other
+# selector in this project, and do nothing else.
+
+def set_file_input(page: Page, label: str, file_path: str | Path) -> None:
+    """Sets a `<input type="file">` identified by its confirmed label.
+    Never invents a selector — the caller supplies the exact label text
+    from a real, recorded portal screen."""
+    page.get_by_label(label).set_input_files(str(file_path))
+
+
+def wait_for_dependent_option(
+    page: Page, dropdown_label: str, option_label: str, *, timeout_ms: int = 5000,
+) -> None:
+    """Waits for a dependent/cascading `<select>` (identified by
+    `dropdown_label`) to have populated an `option_label` option — e.g.
+    after a parent dropdown's selection triggers an async fetch — before
+    selecting it. Playwright's default actionability waits already cover
+    every dependent-dropdown case in the fixtures tested so far; this
+    exists for the case where a future confirmed screen needs an explicit
+    wait beyond that default.
+    """
+    dropdown = page.get_by_label(dropdown_label)
+    option = dropdown.locator("option").filter(has_text=option_label)
+    expect(option).to_be_attached(timeout=timeout_ms)
+    dropdown.select_option(label=option_label)

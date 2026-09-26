@@ -19,8 +19,11 @@ from typing import Callable, TypeVar
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
+from src.db.students import upsert_student
+from src.db.workflow_runs import complete_run, start_run
 from src.diagnostics.capture import capture_failure
 from src.portals.base import AutomationPausedForUser, PortalError
+from src.sheets.models import Student
 
 T = TypeVar("T")
 
@@ -57,6 +60,7 @@ def run_with_recovery(
     workflow: str,
     run_id: str | None = None,
     student_id: str | None = None,
+    student: Student | None = None,
 ) -> T:
     """Runs `fn` (a portal-adapter call or a small sequence of them).
 
@@ -66,9 +70,29 @@ def run_with_recovery(
     `RecoverableAutomationError`; any other Playwright-level error
     becomes `BrowserOrNetworkFailureError`. Both are always preceded by a
     captured diagnostic.
+
+    Also persists a `workflow_runs` row for this run_id (spec §13): started
+    here, marked complete only if `fn` returns normally. Any exception path
+    below leaves it incomplete — a crash is then a queryable DB fact, not
+    just a log line, and `src.db.workflow_runs.find_incomplete_run_with_
+    checkpoint_flag` lets a one-shot portal-creation branch detect it
+    before retrying (see src/engine/branches.py's New UDISE/New PEN
+    guards). `workflow_runs.student_id` has a hard foreign key onto
+    `students` (DB-DESIGN.md §B.4), so when `student` is supplied this
+    upserts it first — the New UDISE/New PEN branches never call
+    `upsert_student` themselves the way the Import/Release branches do.
     """
+    if student_id is None and student is not None:
+        student_id = student.student_id
+    if run_id is not None and student is not None:
+        upsert_student(conn, student)
+    if run_id is not None and student_id is not None:
+        start_run(
+            conn, run_id=run_id, student_id=student_id, condition=workflow,
+            environment=environment, current_state="STARTED",
+        )
     try:
-        return fn()
+        result = fn()
     except AutomationPausedForUser:
         raise
     except PortalError:
@@ -94,3 +118,7 @@ def run_with_recovery(
             error_code="BROWSER_OR_NETWORK_FAILURE", error_message=str(exc),
         )
         raise BrowserOrNetworkFailureError(diagnostic_id) from exc
+    else:
+        if run_id is not None:
+            complete_run(conn, run_id=run_id)
+        return result
