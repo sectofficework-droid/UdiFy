@@ -86,8 +86,10 @@
   new dedicated `udify-sheets-access` service account (not the project's
   pre-existing `play-publisher` one, which is scoped for Google Play
   Console publishing — unrelated). Key downloaded and imported into
-  `credentials/service-account.json`. Still needed: share the 3 real
-  spreadsheets with the service account's email and record their IDs.
+  `credentials/service-account.json`. All 3 real spreadsheets (OGR/
+  UDISE/PEN, identified by user-supplied links and content-verified
+  before sharing) shared with the service account's email, IDs recorded
+  in `.env`. Only the two government portal logins remain to configure.
 
 ## Monitoring
 

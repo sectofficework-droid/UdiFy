@@ -174,11 +174,20 @@ throughout IMPL-SPEC.md per spec §191/§288):**
       project-level IAM role (Sheets access is granted per-spreadsheet by
       sharing, not via GCP IAM). Its JSON key was generated, downloaded,
       and imported into the project's git-ignored `credentials/` folder
-      (`GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`). **Still needed**:
-      share the real OGR/UDISE/PEN spreadsheets with
-      `udify-sheets-access@satyam-school-play-publish.iam.gserviceaccount.com`
-      (Editor access) and record their 3 spreadsheet IDs — via the app's
-      Settings screen or `.env` directly.
+      (`GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`). **Fully resolved
+      2026-09-26**: identified the real OGR/UDISE/PEN spreadsheets by
+      their actual URLs (user-supplied, to avoid guessing among several
+      similarly-named UDISE sheets found in Drive — see below), confirmed
+      each by content (matching column headers/tab names against
+      field_mapping.py and the request_cases model) before sharing,
+      shared all three with `udify-sheets-access@satyam-school-play-
+      publish.iam.gserviceaccount.com` (Editor access, notification
+      email off since it's a service account), and recorded their 3
+      spreadsheet IDs in `.env`. The OGR sheet's real title is "ONLINE
+      GENERAL REGISTER" — OGR is the acronym, not a literal filename,
+      which is why an earlier filename search for "OGR" found nothing.
+      Only the two portal logins (Gujarat UDISE, National UDISE+) remain
+      to be entered (via Settings) before LIVE mode is fully configured.
 3. [x] Confirm: is CAPTCHA/OTP/Aadhaar-consent always operator-performed
       with no exceptions, as the spec assumes (§I)? — **answered
       2026-09-26: yes, always, no exceptions** — confirms the existing

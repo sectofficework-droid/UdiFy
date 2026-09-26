@@ -776,10 +776,17 @@ approval; the school-dependent items get answered/arranged separately.
    account (not reusing the existing `play-publisher` one, to keep
    least-privilege — SECURITY-THREAT-MODEL.md). Its JSON key was
    downloaded and imported into `credentials/service-account.json`,
-   `GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`. **Still needed** (normal
-   LIVE-mode config, not an open question): share the real OGR/UDISE/PEN
-   spreadsheets with `udify-sheets-access@satyam-school-play-
-   publish.iam.gserviceaccount.com` and record their 3 IDs via Settings.
+   `GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`. **Fully resolved same
+   day**: identified the real OGR/UDISE/PEN spreadsheets by their actual
+   URLs (user-supplied — Drive search alone had turned up several
+   similarly-named UDISE candidates and no obvious "OGR" filename; its
+   real title is "ONLINE GENERAL REGISTER", the acronym's source),
+   content-verified each against field_mapping.py's expected columns/tab
+   names before sharing, shared all three with `udify-sheets-
+   access@satyam-school-play-publish.iam.gserviceaccount.com` (Editor),
+   and recorded their 3 spreadsheet IDs in `.env`. Only the two portal
+   logins (Gujarat UDISE, National UDISE+) remain to configure via
+   Settings before LIVE mode is fully set up.
 
 Remaining before "approve release" can be honestly recorded: item 1's
 three still-unbuilt testing-matrix gaps (or an explicit decision to

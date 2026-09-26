@@ -104,11 +104,11 @@ gaps — this file stays a snapshot, not a duplicate of that detail.
       Sheets API on it and created a new, dedicated `udify-sheets-access`
       service account (not the pre-existing `play-publisher` one — kept
       separate for least-privilege). Key downloaded and imported into
-      `credentials/service-account.json`, `.env` updated. **Still
-      needed**: share the 3 real spreadsheets with `udify-sheets-
-      access@satyam-school-play-publish.iam.gserviceaccount.com` and
-      record their IDs (via Settings or `.env`) — normal LIVE-mode
-      config, not an open question anymore.
+      `credentials/service-account.json`, `.env` updated. **Fully
+      resolved same day**: all 3 real spreadsheets (user-supplied links,
+      content-verified before sharing) shared with `udify-sheets-
+      access@satyam-school-play-publish.iam.gserviceaccount.com`, IDs
+      recorded in `.env`. Only both portal logins remain to configure.
 3. [x] Aadhaar-consent automation — **answered 2026-09-26**: always
       manual, no exceptions, confirming the existing design.
 4. [x] PEN Import ACTIVE/pending, PEN Request Sent, View Sent Request —
