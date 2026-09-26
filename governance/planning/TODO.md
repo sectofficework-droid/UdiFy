@@ -768,18 +768,24 @@ approval; the school-dependent items get answered/arranged separately.
 4. Rollback path — **closed 2026-09-26**, see RELEASE-PLAN.md's new
    "Rollback path" section.
 5. DISCOVERY.md open question #2 (Google Cloud project/service-account
-   provisioning) — **partially answered 2026-09-26**: not sure yet,
-   needs checking with whoever manages the school's Google Workspace/
-   Cloud account. Not needed for MOCK-mode work; needed before Live
-   Verification. Use the app's Settings screen (added 2026-09-26) or
-   SETUP-GUIDE.md's "Configure" section once resolved either way.
+   provisioning) — **closed 2026-09-26**: checked directly via
+   console.cloud.google.com — a project already existed
+   (`satyam-school-play-publish`, previously used for Google Play
+   Console publishing, unrelated to this project). Enabled the Sheets
+   API on it and created a new, dedicated `udify-sheets-access` service
+   account (not reusing the existing `play-publisher` one, to keep
+   least-privilege — SECURITY-THREAT-MODEL.md). Its JSON key was
+   downloaded and imported into `credentials/service-account.json`,
+   `GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`. **Still needed** (normal
+   LIVE-mode config, not an open question): share the real OGR/UDISE/PEN
+   spreadsheets with `udify-sheets-access@satyam-school-play-
+   publish.iam.gserviceaccount.com` and record their 3 IDs via Settings.
 
 Remaining before "approve release" can be honestly recorded: item 1's
 three still-unbuilt testing-matrix gaps (or an explicit decision to
-release without them), and item 5 above (GCP provisioning). Numeric
-success metrics — **answered 2026-09-26**, see DISCOVERY.md's "Success
-metrics" section (no longer a remaining item; BOOTSTRAP.md's "Open
-questions" has the consolidated list).
+release without them). Numeric success metrics and GCP provisioning are
+both now answered/resolved — see DISCOVERY.md and BOOTSTRAP.md's "Open
+questions" for the consolidated record.
 
 ## Editable Settings screen for LIVE credentials (2026-09-26)
 

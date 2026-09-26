@@ -80,9 +80,14 @@
   2026-09-25 — see BOOTSTRAP.md).
 - `.env.example` (trackable template, no real values) to be created at
   CODING time so setup is reproducible without exposing secrets.
-- Google Cloud project / service account provisioning: **open question**
-  (DISCOVERY.md #2) — does the school already have one, or does this need
-  to be created?
+- Google Cloud project / service account provisioning — **resolved
+  2026-09-26** (DISCOVERY.md #2): reused the school's existing project
+  (`satyam-school-play-publish`), enabled the Sheets API, and created a
+  new dedicated `udify-sheets-access` service account (not the project's
+  pre-existing `play-publisher` one, which is scoped for Google Play
+  Console publishing — unrelated). Key downloaded and imported into
+  `credentials/service-account.json`. Still needed: share the 3 real
+  spreadsheets with the service account's email and record their IDs.
 
 ## Monitoring
 

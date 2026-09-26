@@ -160,13 +160,25 @@ throughout IMPL-SPEC.md per spec §191/§288):**
 1. [x] What does "done" look like in measurable terms (time saved, error
       rate, backlog cleared)? — needed before RELEASE gate. **Answered
       2026-09-26**, see "Success metrics" above.
-2. [~] Do you already have a Google Cloud project + service account for
+2. [x] Do you already have a Google Cloud project + service account for
       Sheets API access, or does this need to be created from scratch? —
-      **partially answered 2026-09-26**: not sure yet, needs checking
-      with whoever manages the school's Google Workspace/Cloud account.
-      See SETUP-GUIDE.md's "Configure" section (or the app's Settings
-      screen, added 2026-09-26) for what to do once this is confirmed
-      either way.
+      **answered and resolved 2026-09-26**: a project already existed
+      (`satyam-school-play-publish`, previously used for Google Play
+      Console app publishing — not related to this project). Checked it
+      directly via console.cloud.google.com: Sheets API was not yet
+      enabled (now enabled), and its one existing service account
+      (`play-publisher@...`) was scoped for Play publishing — reusing it
+      for Sheets would have mixed unrelated permissions, so a new,
+      dedicated service account (`udify-sheets-access@satyam-school-
+      play-publish.iam.gserviceaccount.com`) was created instead, with no
+      project-level IAM role (Sheets access is granted per-spreadsheet by
+      sharing, not via GCP IAM). Its JSON key was generated, downloaded,
+      and imported into the project's git-ignored `credentials/` folder
+      (`GOOGLE_SERVICE_ACCOUNT_FILE` set in `.env`). **Still needed**:
+      share the real OGR/UDISE/PEN spreadsheets with
+      `udify-sheets-access@satyam-school-play-publish.iam.gserviceaccount.com`
+      (Editor access) and record their 3 spreadsheet IDs — via the app's
+      Settings screen or `.env` directly.
 3. [x] Confirm: is CAPTCHA/OTP/Aadhaar-consent always operator-performed
       with no exceptions, as the spec assumes (§I)? — **answered
       2026-09-26: yes, always, no exceptions** — confirms the existing
@@ -174,5 +186,6 @@ throughout IMPL-SPEC.md per spec §191/§288):**
       RELEASE gate").
 
 These do not block PLANNING — they are recorded for the "approve plan" /
-"approve design" gates. Only item 2 (GCP provisioning) remains open
-going into RELEASE.
+"approve design" gates. All three are now answered going into RELEASE;
+item 2's remaining follow-up (sharing the real spreadsheets) is a normal
+LIVE-mode configuration step, not an open question.

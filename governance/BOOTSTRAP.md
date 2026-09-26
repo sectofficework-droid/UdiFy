@@ -97,12 +97,18 @@ gaps — this file stays a snapshot, not a duplicate of that detail.
       qualitative dimensions (time saved per student, backlog cleared,
       error rate vs. manual entry), no hard numeric targets committed to
       yet — see DISCOVERY.md's "Success metrics" section.
-2. [~] Google Cloud project/service account for Sheets API — **not sure
-      yet** (2026-09-26), needs checking with whoever manages the
-      school's Google Workspace/Cloud account. Not needed for MOCK-mode
-      work; needed before the Live Verification Gate. See SETUP-GUIDE.md
-      "Configure" or the app's Settings screen (added 2026-09-26) for
-      what to do once resolved either way.
+2. [x] Google Cloud project/service account for Sheets API — **resolved
+      2026-09-26**: checked directly via console.cloud.google.com — the
+      school already had a project (`satyam-school-play-publish`,
+      previously used for Google Play Console publishing). Enabled the
+      Sheets API on it and created a new, dedicated `udify-sheets-access`
+      service account (not the pre-existing `play-publisher` one — kept
+      separate for least-privilege). Key downloaded and imported into
+      `credentials/service-account.json`, `.env` updated. **Still
+      needed**: share the 3 real spreadsheets with `udify-sheets-
+      access@satyam-school-play-publish.iam.gserviceaccount.com` and
+      record their IDs (via Settings or `.env`) — normal LIVE-mode
+      config, not an open question anymore.
 3. [x] Aadhaar-consent automation — **answered 2026-09-26**: always
       manual, no exceptions, confirming the existing design.
 4. [x] PEN Import ACTIVE/pending, PEN Request Sent, View Sent Request —
@@ -119,14 +125,14 @@ gaps — this file stays a snapshot, not a duplicate of that detail.
 **TESTING gate closed** ("test it", 2026-09-26). RELEASE-gate remediation
 mostly complete (workflow checkpoint/resume, new-entry duplicate guard,
 target-machine smoke tests, rollback path, all SECURITY-THREAT-MODEL.md
-questions, success metrics) — see TODO.md's "RELEASE gate remediation"
-section for the full item-by-item account. One item remains before
-"approve release" can be honestly recorded: open question 2 above (GCP
-provisioning). Everything else is either closed or an explicitly
-tracked, honestly-marked gap (TODO.md's testing matrix/acceptance
-criteria) — none silently skipped.
+questions, success metrics, GCP provisioning) — see TODO.md's "RELEASE
+gate remediation" section for the full item-by-item account. All open
+questions above are now answered. What remains before "approve release"
+can be honestly recorded is item 1's three still-unbuilt testing-matrix
+gaps (checkpoint/resume + retry flows) — or an explicit decision to
+release without them.
 
-Say **"approve release"** once question 2 is resolved, or supply real
+Say **"approve release"** once that's decided, or supply real
 credentials (via the Settings screen or `.env` directly) to begin the
 Live Verification Gate's L1-L4 phases — these can proceed independently
 of the RELEASE gate itself.
