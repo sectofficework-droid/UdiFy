@@ -61,25 +61,37 @@ something to build speculatively now.
 - **Collection**: student PII already exists in the school's own Google
   Sheets; this application reads it, does not originate new collection.
 - **Retention**: SQLite audit trail is intentionally durable/append-only
-  (spec §P) for accountability — retention/deletion policy for this local
-  DB is not specified by the source material; flag as an **open question**
-  for the school (e.g. does the school have an internal data-retention
-  policy this must follow?).
+  (spec §P) for accountability. **Answered 2026-09-26**: the school has no
+  specific retention policy — the audit trail is kept indefinitely, as
+  already built (nothing auto-deletes `pen_case_events`/diagnostics rows).
 - **Third-party processors**: Google (Sheets API) and the two government
   portals are the only external parties data reaches; no other analytics/
   storage/messaging vendor is in scope.
 - **Encryption**: local SQLite DB and credentials file are not specified as
-  encrypted-at-rest by the source material; relying on OS-level disk/user
-  protections is the current assumption — record as an open item if the
-  school requires stronger at-rest protection.
+  encrypted-at-rest by the source material. **Answered 2026-09-26**: the
+  school does not require encryption at rest beyond normal Windows
+  user-account/disk protection — no SQLCipher or volume-encryption work
+  is needed.
 
 ## Verification before RELEASE gate
 
 Per RULEBOOK.md §J16/§E.7, before "approve release":
-- Confirm no secrets are present anywhere in tracked git history
-  (`git check-ignore -v` on the real credentials file, per RULEBOOK.md
-  §J6).
-- Confirm the Aadhaar-consent automation question (DISCOVERY.md open
-  question 3) has an explicit answer from the school.
-- Confirm the data-retention open question above has an answer or an
-  explicit "not required" decision from the school.
+- [x] Confirm no secrets are present anywhere in tracked git history
+      (`git check-ignore -v` on the real credentials file, per
+      RULEBOOK.md §J6) — **verified 2026-09-26**: `git log --all
+      --diff-filter=A` shows only `.env.example` (placeholders, no real
+      values) was ever added — never a real `.env` or credentials file; a
+      full-history diff scan for password/secret/token/private_key-
+      shaped lines found nothing beyond the fixtures' clearly-fake
+      literals ("not-a-real-password", "mock-password"); `git
+      check-ignore -v` confirms `.env` and `credentials/service-
+      account.json` are both currently git-ignored.
+- [x] Confirm the Aadhaar-consent automation question (DISCOVERY.md open
+      question 3) has an explicit answer from the school — **answered
+      2026-09-26**: always a human/operator action, no exceptions,
+      confirming the existing design (the automation is structurally
+      incapable of clicking "I Agree" itself — see `AutomationPausedForUser`
+      and `check_aadhaar_consent_required()` in both portal adapters).
+- [x] Confirm the data-retention open question above has an answer or an
+      explicit "not required" decision from the school — **answered
+      2026-09-26**, see "Data handling" above.

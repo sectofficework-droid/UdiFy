@@ -146,12 +146,21 @@ throughout IMPL-SPEC.md per spec §191/§288):**
 
 ## Open questions for the user
 
-1. What does "done" look like in measurable terms (time saved, error rate,
-   backlog cleared)? — needed before RELEASE gate.
-2. Do you already have a Google Cloud project + service account for Sheets
-   API access, or does this need to be created from scratch?
-3. Confirm: is CAPTCHA/OTP/Aadhaar-consent always operator-performed with no
-   exceptions, as the spec assumes (§I)?
+1. [ ] What does "done" look like in measurable terms (time saved, error
+      rate, backlog cleared)? — needed before RELEASE gate. **Still open
+      as of 2026-09-26.**
+2. [~] Do you already have a Google Cloud project + service account for
+      Sheets API access, or does this need to be created from scratch? —
+      **partially answered 2026-09-26**: not sure yet, needs checking
+      with whoever manages the school's Google Workspace/Cloud account.
+      See SETUP-GUIDE.md's "Configure" section (or the app's Settings
+      screen, added 2026-09-26) for what to do once this is confirmed
+      either way.
+3. [x] Confirm: is CAPTCHA/OTP/Aadhaar-consent always operator-performed
+      with no exceptions, as the spec assumes (§I)? — **answered
+      2026-09-26: yes, always, no exceptions** — confirms the existing
+      design (see SECURITY-THREAT-MODEL.md's "Verification before
+      RELEASE gate").
 
 These do not block PLANNING — they are recorded for the "approve plan" /
-"approve design" gates.
+"approve design" gates. Items 1 and 2 remain open going into RELEASE.

@@ -193,9 +193,14 @@ the first real release onward.
 ## Release criteria (gate for "approve release")
 
 - [ ] All TESTING-phase acceptance criteria (TODO.md) pass with evidence.
-- [ ] SECURITY-THREAT-MODEL.md open questions answered or explicitly
+- [x] SECURITY-THREAT-MODEL.md open questions answered or explicitly
       accepted as risk by the school (RULEBOOK.md §J0E exception process
-      if any is knowingly deferred).
+      if any is knowingly deferred) — **closed 2026-09-26**: data
+      retention (kept indefinitely, no school policy), encryption at rest
+      (OS-level protection is sufficient, no school requirement),
+      Aadhaar-consent-always-manual (confirmed, no exceptions), and no-
+      secrets-in-git-history (verified) — see SECURITY-THREAT-MODEL.md's
+      "Verification before RELEASE gate" and "Data handling" sections.
 - [x] Smoke tests above pass on the actual target machine, not only a
       developer machine — **closed 2026-09-26**: confirmed this project's
       machine IS the school's UDISE-operations machine (see
@@ -205,5 +210,11 @@ the first real release onward.
       automated suite already running on this machine).
 - [x] Rollback path confirmed — **closed 2026-09-26**, see "Rollback
       path" above.
-- [ ] BOOTSTRAP.md and this file both reflect the real, verified state (no
-      stale TBDs presented as done).
+- [x] BOOTSTRAP.md and this file both reflect the real, verified state (no
+      stale TBDs presented as done) — **closed 2026-09-26**: BOOTSTRAP.md
+      was fully refreshed (it was frozen at 2026-09-25 session 1, still
+      claiming Playwright/PySide6 "not yet installed" and "60/60 tests"
+      — both stale). This file's own remaining TBDs (build-version
+      stamping, SQLite backup/export, formal deployment steps) are left
+      as genuine TBDs, not falsely closed — none are load-bearing for
+      "approve release" itself.

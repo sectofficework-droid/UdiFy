@@ -743,8 +743,12 @@ approval; the school-dependent items get answered/arranged separately.
    unbuilt: save-succeeded-but-unconfirmed retry, sheet-write-failure-
    after-portal-success recovery, and full mid-branch resume for the
    National UDISE+ multi-tab profile fill.
-2. SECURITY-THREAT-MODEL.md data-retention open question — still open,
-   needs the school's answer or an explicit accepted-risk note.
+2. SECURITY-THREAT-MODEL.md open questions — **closed 2026-09-26**: data
+   retention (kept indefinitely, no school policy), encryption at rest
+   (not required, OS-level protection is sufficient), Aadhaar-consent-
+   always-manual (confirmed, no exceptions), and no-secrets-in-git-
+   history (verified — only `.env.example` was ever added, `.env`/
+   `credentials/` both confirmed git-ignored).
 3. Smoke tests on the actual target machine — **closed 2026-09-26**: user
    confirmed this project's machine IS the school's actual UDISE-
    operations machine (RELEASE-PLAN.md "Environments"), so there is no
@@ -764,11 +768,18 @@ approval; the school-dependent items get answered/arranged separately.
 4. Rollback path — **closed 2026-09-26**, see RELEASE-PLAN.md's new
    "Rollback path" section.
 5. DISCOVERY.md open question #2 (Google Cloud project/service-account
-   provisioning) — still open, needs the school's answer.
+   provisioning) — **partially answered 2026-09-26**: not sure yet,
+   needs checking with whoever manages the school's Google Workspace/
+   Cloud account. Not needed for MOCK-mode work; needed before Live
+   Verification. Use the app's Settings screen (added 2026-09-26) or
+   SETUP-GUIDE.md's "Configure" section once resolved either way.
 
-User said they will answer/arrange items 2, 3, and 5 directly (item 3 is
-now closed above). Items 2 and 5 remain before "approve release" can be
-honestly recorded as passed.
+Remaining before "approve release" can be honestly recorded: item 1's
+three still-unbuilt testing-matrix gaps (or an explicit decision to
+release without them), item 5 above (GCP provisioning), and DISCOVERY.md
+open question 1 (numeric success metrics — flagged there as "needed
+before RELEASE gate" but not yet asked in this remediation pass; see
+BOOTSTRAP.md's "Open questions" for the consolidated list).
 
 ## Editable Settings screen for LIVE credentials (2026-09-26)
 
