@@ -51,3 +51,6 @@ screenshots/
 Thumbs.db
 .vscode/
 .idea/
+
+# Ad hoc debug/launch output (never a source of truth — see diagnostics/)
+*.log
