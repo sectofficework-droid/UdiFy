@@ -561,9 +561,57 @@ automated coverage for them beyond this manual live confirmation).
 
 **Not yet done**: L2 (read-only navigation/search on both real portals),
 L3 (one controlled test student, full real run), L4 (recovery
-scenarios), and building `GoogleSheetsRepository`'s actual read/write
-methods. Do not treat L1 passing as license to process real students —
-per spec, L2/L3/L4 come first, in order.
+scenarios). `GoogleSheetsRepository`'s read/write methods are now built
+— see "L2 Read-only (Sheets half)" below. Do not treat L1 passing as
+license to process real students — per spec, L2/L3/L4 come first, in
+order, and the two real portals still have no L2 done.
+
+### L2 Read-only (Sheets half) — 2026-09-27
+
+`GoogleSheetsRepository`'s `NotImplementedError` stubs are replaced with
+real implementations (`get_row_values`, `get_row_color`, `write_cell`,
+`set_row_color`, `verify_cell`, `find_by_name`, `find_by_uid`,
+`find_by_pen`) — full detail and design rationale in the class's
+docstrings/comments, `src/sheets/repository.py`. Read methods verified
+against the real live sheets (read-only scratch script, not part of the
+app or committed):
+
+- `get_row_values` on a real row of each of the 3 sheets decoded every
+  column correctly — headers read from the sheet's own row 1, not
+  hardcoded, so a header reorder/rename doesn't silently break this.
+- `get_row_color` on untouched real rows correctly returned `UNCHANGED`
+  (no background color set yet in any of the 3 sample rows checked).
+- `find_by_name` against the real OGR tabs found the expected row.
+- **New finding, not previously in DB-DESIGN.md**: the live OGR sheet
+  has **17** columns, not the documented 16 — an extra `REMARK` column
+  at the end (`AY, NAME, STD, MOBILE 1, MOBILE 2, PR, T-GR, TC, DOB, DOA,
+  DOE, AADHAR, UID, PEN, APAAR, DOCUMENTS PENDING, REMARK`). DB-DESIGN.md
+  §A.1 updated to match. Nothing in the codebase currently writes to
+  or reads `REMARK` on OGR — just recording the header list is
+  accurate now that it's been read for real.
+- `write_cell`/`set_row_color` (the two write paths) are implemented but
+  **not yet exercised against a real sheet** — deliberately: writing to
+  the real production OGR/UDISE/PEN sheets needs one specifically
+  authorized test student (L3), not a throwaway smoke-test row. Column-
+  layout-dependent code (`write_cell` looks up the target column by
+  reading the tab's real header row) exercised the read half of that
+  same code path already, above.
+- Assumption flagged, not yet confirmed: `find_by_name`/`find_by_uid`/
+  `find_by_pen` build each `Student.student_id` from OGR's `AADHAR`
+  column (`"aadhar:<value>"`) since nothing in any of the 3 sheets is a
+  ready-made internal case key, and this ID must stay stable for a given
+  student across every app run (it indexes the local, append-only
+  `pen_case_events` table). A row with no Aadhaar on file falls back to
+  a row-position key instead, which is unstable if that row is later
+  reordered — logged as a warning when it happens; not yet hit against
+  real data, since the one live row checked did have an Aadhaar. None of
+  these 3 methods are called by any engine code yet (confirmed by grep),
+  so this doesn't block anything today, but should be revisited before
+  any future feature relies on it.
+
+**Not yet done**: L2 on the two government portals (read-only
+navigation/search), and exercising the two write paths above against a
+real sheet.
 
 ## Testing matrix (spec §286 — minimum required coverage)
 

@@ -10,9 +10,12 @@
 
 ### A.1 ONLINE GENERAL REGISTER (OGR) — spec §4, §156.1, §229
 
-Every student is recorded here, in stages. Columns observed:
+Every student is recorded here, in stages. Columns (17, confirmed
+2026-09-27 by reading the real sheet's header row via the Sheets API —
+supersedes the earlier 16-column list, which was missing the trailing
+`REMARK`):
 `AY, NAME, STD, MOBILE 1, MOBILE 2, PR, T-GR, TC, DOB, DOA, DOE, AADHAR,
-UID, PEN, APAAR, DOCUMENTS PENDING`.
+UID, PEN, APAAR, DOCUMENTS PENDING, REMARK`.
 
 **Invariant (hard rule, spec §4.4/§128.4):** OGR row color never becomes
 GREEN as part of government-entry completion. OGR UID/PEN cells are
