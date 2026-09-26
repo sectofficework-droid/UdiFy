@@ -12,7 +12,12 @@
   environment — this is a local desktop app (spec §AD).
 - **Production**: the school's operating Windows machine(s) where staff run
   the packaged `.exe`. Same machine class as development; no separate
-  staging tier is specified by the source material.
+  staging tier is specified by the source material. **Confirmed
+  2026-09-26**: this project's development machine (Lenovo 83DV, Windows
+  11 Home Single Language, build 26200) IS the same machine the school
+  uses for its actual UDISE portal operations — there is no separate
+  target machine to additionally verify against. See "Smoke tests" and
+  release-criteria item 3 below.
 - **Test target: resolved 2026-09-25 — mock-first.** The bulk of TESTING
   (state machine, adapters, idempotency, recovery, selector fallback,
   audit trail, GUI) runs entirely against `MockSheetsRepository` and
@@ -104,14 +109,37 @@ specified or needed for a single-operator local tool.
 
 **Mock smoke tests (no credentials needed, runnable throughout CODING):**
 - App launches, connects to `MockSheetsRepository`, reads all three mock
-  workbooks without error.
+  workbooks without error. **Verified 2026-09-26 on the confirmed target
+  machine** (the school's own UDISE-operations machine, not a separate
+  developer machine — see "Environments" above): the real entry point's
+  theme + `MainWindow` + `AppContext` were launched together (not just
+  constructed, as `tests/unit/test_app_smoke.py` does), the Batch Queue
+  screen rendered with the navy/orange theme applied and the 5-student
+  MOCK dataset populated (screenshotted).
 - One full Condition-1 (New/New) run against mocked portal pages
   completes end-to-end with correct GREEN/ND results, `environment =
   MOCK` throughout, and no write anywhere marked `LIVE_VERIFIED_SUCCESS`.
+  **Verified 2026-09-26 on the target machine**: ran through the actual
+  Run & Progress screen (clicking Start run, not calling the engine
+  directly), the real `RunWorker` background thread opened a real
+  visible Playwright browser against the MOCK fixtures, and the run
+  reached `PEN_RESOLVED`/`RESOLVED`, both sheet rows GREEN, PEN=`ND`
+  (screenshotted).
 - `AUTOMATION_PAUSED_FOR_USER` prompt (e.g. simulated Aadhaar consent
-  step) appears and resumes correctly against the mock.
+  step) appears and resumes correctly against the mock. **Not
+  re-verified through the GUI this pass** — the MOCK demo dataset's
+  fixture URL doesn't trigger the consent branch, and forcing it would
+  mean changing app code just to manufacture a demo scenario. Covered by
+  `tests/integration/test_national_udise_adapter.py`'s
+  `test_aadhaar_consent_pauses_and_is_never_auto_clicked`, which does run
+  on this same now-confirmed target machine as part of the automated
+  suite (102/102 passing here).
 - Diagnostics capture works when a failure is deliberately induced (spec
-  §L10-equivalent test for this app).
+  §L10-equivalent test for this app). **Not re-verified through the GUI
+  this pass** (no failure was induced in the live run — the Diagnostics
+  screen correctly showed empty) — covered by
+  `tests/unit/test_diagnostics.py`'s deliberately-triggered-failure test,
+  also running on this machine as part of the same 102/102 pass.
 
 **Live smoke tests (only at the Live Verification Gate, TODO.md, once
 real credentials are configured):**
@@ -168,8 +196,13 @@ the first real release onward.
 - [ ] SECURITY-THREAT-MODEL.md open questions answered or explicitly
       accepted as risk by the school (RULEBOOK.md §J0E exception process
       if any is knowingly deferred).
-- [ ] Smoke tests above pass on the actual target machine, not only a
-      developer machine.
+- [x] Smoke tests above pass on the actual target machine, not only a
+      developer machine — **closed 2026-09-26**: confirmed this project's
+      machine IS the school's UDISE-operations machine (see
+      "Environments" above), then re-ran the MOCK smoke tests through the
+      real GUI entry point on it (see "Smoke tests" above for exactly
+      what was and wasn't re-verified through the GUI vs. covered by the
+      automated suite already running on this machine).
 - [x] Rollback path confirmed — **closed 2026-09-26**, see "Rollback
       path" above.
 - [ ] BOOTSTRAP.md and this file both reflect the real, verified state (no

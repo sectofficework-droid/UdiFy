@@ -745,15 +745,30 @@ approval; the school-dependent items get answered/arranged separately.
    National UDISE+ multi-tab profile fill.
 2. SECURITY-THREAT-MODEL.md data-retention open question — still open,
    needs the school's answer or an explicit accepted-risk note.
-3. Smoke tests on the actual target machine — still not done, needs the
-   school's machine.
-4. Rollback path — still not recorded in `RELEASE-PLAN.md`.
+3. Smoke tests on the actual target machine — **closed 2026-09-26**: user
+   confirmed this project's machine IS the school's actual UDISE-
+   operations machine (RELEASE-PLAN.md "Environments"), so there is no
+   separate target machine to additionally verify against. Re-ran the
+   MOCK smoke tests through the real GUI entry point (`src/app/main.py`'s
+   own theme + `AppContext` + `MainWindow` wiring, not a bypassed
+   construction) on it: Batch Queue rendered correctly themed with the
+   5-student MOCK dataset, a full Condition 1 run driven by actually
+   clicking "Start run" completed to `RESOLVED`/GREEN/GREEN/`ND` with a
+   real visible Playwright browser, all screenshotted. See RELEASE-
+   PLAN.md's "Smoke tests" section for exactly what was re-verified live
+   vs. already covered by the automated suite running on this same
+   machine (Aadhaar-pause and diagnostics-capture-on-failure — both
+   covered by existing automated tests, not re-demonstrated through the
+   GUI this pass, since neither the MOCK dataset nor this run naturally
+   exercises them without changing app code to force a demo scenario).
+4. Rollback path — **closed 2026-09-26**, see RELEASE-PLAN.md's new
+   "Rollback path" section.
 5. DISCOVERY.md open question #2 (Google Cloud project/service-account
    provisioning) — still open, needs the school's answer.
 
-User said they will answer/arrange items 2, 3, and 5 directly (not
-recorded as accepted risk). Items 2, 3, 4, 5 remain before "approve
-release" can be honestly recorded as passed.
+User said they will answer/arrange items 2, 3, and 5 directly (item 3 is
+now closed above). Items 2 and 5 remain before "approve release" can be
+honestly recorded as passed.
 
 ## Next trigger
 
