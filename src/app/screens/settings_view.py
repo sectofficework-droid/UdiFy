@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -44,14 +45,32 @@ class SettingsScreen(QWidget):
         settings = ctx.settings
         self._service_account_path: str = settings.sheets.service_account_file or ""
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.addWidget(
             screen_header(
                 "Settings",
                 "Google Sheets connection and portal logins — saved to .env/"
                 "credentials/ (both git-ignored) and applied on next restart.",
             )
         )
+
+        # This form has enough rows that, at some window heights (a
+        # maximized window is shorter than you'd expect once the taskbar
+        # is subtracted), the content doesn't fit and Qt was silently
+        # compressing every row toward its minimum size instead of
+        # showing a scrollbar — squeezing rows below the height text
+        # rendering needs cleanly, which showed up as vertically clipped
+        # placeholder text. A QScrollArea keeps every row at its natural
+        # height regardless of window size; if it doesn't fit, it
+        # scrolls, which is what should have been happening all along.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll_content = QWidget()
+        layout = QVBoxLayout(scroll_content)
+        scroll.setWidget(scroll_content)
+        outer_layout.addWidget(scroll, stretch=1)
 
         info_panel = QFrame()
         info_panel.setObjectName("Panel")
