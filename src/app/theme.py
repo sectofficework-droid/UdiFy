@@ -78,6 +78,17 @@ def build_stylesheet(p: Palette) -> str:
     }}
     QMainWindow {{ background-color: {p.paper}; }}
 
+    /* QWidget's own background-color above cascades to QLabel (a
+       QWidget subclass) too, so every label painted its own solid
+       {p.paper}-colored rectangle behind its text — visible as a grey
+       "highlight" box around every single label wherever it sat on a
+       different-colored parent (e.g. the white #Panel frames used
+       throughout Settings/Dashboard). Labels should be transparent by
+       default and let the parent's background show through; the chip/
+       title labels below still win over this since attribute/ID
+       selectors are more specific than this bare type selector. */
+    QLabel {{ background: transparent; }}
+
     /* Qt's default dotted keyboard-focus rectangle reads as a stray,
        unstyled highlight against this theme — every other state
        (hover/checked/selection) already has its own deliberate styling,
