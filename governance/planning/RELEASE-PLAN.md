@@ -194,6 +194,21 @@ that machine has the same Application Control restriction before
 assuming either distribution path works — don't assume the `.exe` is
 safe to try again without checking first.
 
+**2026-09-26, at user request**: also built a single-file variant
+(`installer-onefile.spec`, tracked in git; `pyinstaller installer-
+onefile.spec`) and placed the resulting `UdiFy.exe` (~110MB) at the
+repo root — untracked/git-ignored (`/UdiFy.exe` in `.gitignore`), for
+the user to install/allow themselves. Confirmed it hits the exact same
+Application Control block as the one-folder build (expected — the block
+is about the missing code signature, not the packaging format). The
+specific Windows feature involved is **Smart App Control** (`Get-
+MpComputerStatus`'s `SmartAppControlState: On`) — a consumer Windows 11
+setting the user could disable via Windows Security → App & browser
+control, but that's a one-way switch (cannot be re-enabled without
+reinstalling Windows) and a system-security-setting change, so left
+entirely to the user's own decision and action, never done by this
+session.
+
 ## Rollback path (recorded 2026-09-26, RELEASE gate remediation item 4)
 
 Since this is a new local install with no prior production version,
