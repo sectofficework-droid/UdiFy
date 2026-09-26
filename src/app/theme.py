@@ -78,6 +78,61 @@ def build_stylesheet(p: Palette) -> str:
     }}
     QMainWindow {{ background-color: {p.paper}; }}
 
+    /* Qt's default dotted keyboard-focus rectangle reads as a stray,
+       unstyled highlight against this theme — every other state
+       (hover/checked/selection) already has its own deliberate styling,
+       so the generic focus rect is redundant, not additive. */
+    *:focus {{ outline: none; }}
+
+    QScrollBar:vertical {{
+        background: transparent;
+        width: 12px;
+        margin: 2px;
+    }}
+    QScrollBar::handle:vertical {{
+        background: {p.border};
+        border-radius: 5px;
+        min-height: 24px;
+    }}
+    QScrollBar::handle:vertical:hover {{ background: {p.muted}; }}
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+    QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: none; }}
+
+    QScrollBar:horizontal {{
+        background: transparent;
+        height: 12px;
+        margin: 2px;
+    }}
+    QScrollBar::handle:horizontal {{
+        background: {p.border};
+        border-radius: 5px;
+        min-width: 24px;
+    }}
+    QScrollBar::handle:horizontal:hover {{ background: {p.muted}; }}
+    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0px; }}
+    QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: none; }}
+
+    QTableCornerButton::section {{
+        background-color: {p.surface_alt};
+        border: none;
+        border-bottom: 1px solid {p.border};
+    }}
+
+    QComboBox {{
+        selection-background-color: {p.orange};
+    }}
+    QComboBox::drop-down {{
+        border: none;
+        width: 22px;
+    }}
+    QComboBox QAbstractItemView {{
+        background-color: {p.surface};
+        border: 1px solid {p.border};
+        selection-background-color: {p.orange};
+        selection-color: #FFFFFF;
+        outline: none;
+    }}
+
     #Sidebar {{
         background-color: {p.navy};
         min-width: 220px;
@@ -183,6 +238,7 @@ def build_stylesheet(p: Palette) -> str:
         font-weight: 600;
     }}
     QTableWidget::item {{ padding: 4px; }}
+    QTableWidget::item:focus {{ outline: none; }}
 
     QLineEdit, QComboBox, QPlainTextEdit {{
         background-color: {p.surface};
