@@ -9,13 +9,29 @@ DECISION" §1/§3/§6 in UDIFY-SPECIFICATIONS.md).
 from __future__ import annotations
 
 import os
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+def _project_root() -> Path:
+    """The directory `.env`/`credentials/`/the SQLite DB/diagnostics live
+    next to. In development that's the repo root; a frozen PyInstaller
+    build has no `src/` tree on disk to walk up from (`__file__` doesn't
+    point at a real path once bundled — the same problem `src/app/
+    mock_fixtures.py` already works around for fixture files), so it's
+    the directory containing the built `.exe` instead — the natural
+    place a user running the packaged app would put their own `.env`.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[2]
+
+
+PROJECT_ROOT = _project_root()
 
 
 class Environment(str, Enum):
