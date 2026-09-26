@@ -195,6 +195,15 @@ class NationalUDISEPortalAdapter:
         self.page.get_by_role("button", name="Login").click()
 
     def _captcha_present(self) -> bool:
+        # get_by_label("Captcha") doesn't reach the real field: dumped
+        # every <input>/<label> on the live page 2026-09-26 and the
+        # "Captcha" <label> has no `for` attribute and isn't wrapped
+        # around anything — it's not associated with the answer field by
+        # any mechanism get_by_label relies on. The actual field is
+        # `<input type="text" name="captcha" placeholder="Enter captcha
+        # code">`, confirmed directly from that dump, not guessed — same
+        # confidence level as using type="password" elsewhere.
+        #
         # Checks the field's *value*, not just its visibility: the field
         # stays visible whether or not the operator has typed the code
         # into it, so a visibility-only check never clears once it first
@@ -206,13 +215,10 @@ class NationalUDISEPortalAdapter:
         # only the real portal can, on submission — so "operator entered
         # something" is the right/only signal available to act on here).
         try:
-            field = self.page.get_by_label("Captcha")
+            field = self.page.locator('input[name="captcha"]')
             if not field.is_visible(timeout=1000):
                 return False
-            try:
-                return field.input_value() == ""
-            except Exception:
-                return True
+            return field.input_value() == ""
         except PlaywrightTimeoutError:
             return False
 
