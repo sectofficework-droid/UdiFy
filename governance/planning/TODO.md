@@ -14,7 +14,7 @@
 | DESIGN FIXED | **Approved** ("approve design", 2026-09-25) | **"approve design"** ✅ |
 | UI DESIGN CONFIRMED | **Closed** ("code it", 2026-09-25) | **"UI is final" / "start backend"** ✅ |
 | CODING | **Mock-first build order complete** (steps 1-16 below, 2026-09-25) — stopped at the Live Verification Gate (step 17) per the standing instruction to complete the whole project autonomously; live credential configuration and controlled live verification remain out of scope without the user present | **"code it"** ✅ |
-| TESTING | Continuous throughout CODING per RULEBOOK §L/§J13 (60/60 unit+integration tests passing, including a dedicated UI-change resilience pass) — not the same as the formal TESTING gate, which still awaits its own trigger phrase | **"run tests" / "test it"** |
+| TESTING | **Passed** ("test it", 2026-09-26) — 90/90 unit+integration tests passing (full suite re-run at gate closure, not just the 51/51 recorded at step 16). Closed for everything actually built under the mock-first scope; the acceptance-criteria/testing-matrix items still `[ ]` below are unbuilt features (checkpoint/resume, retry-without-repeat flows, file upload, dependent-dropdown handling, new-entry duplicate guard), not failing tests — carried to backlog rather than silently waved through | **"run tests" / "test it"** ✅ |
 | RELEASE | Not started | **"approve release"** |
 | OPERATE | Not started | automatic after approved release |
 
@@ -668,19 +668,20 @@ LIVE CREDENTIALS: NOT CONFIGURED
 
 ## Next trigger
 
-**Stopped at the Live Verification Gate (2026-09-25)** — see the report
-template above ("Live Verification Gate" section) for the exact status.
-The mock-first build order (steps 1-16) is complete; step 17 itself
-(controlled live verification) requires the user present, real
+**TESTING gate closed ("test it", 2026-09-26).** 90/90 tests passing.
+Still **stopped at the Live Verification Gate (2026-09-25)** — see the
+report template above ("Live Verification Gate" section) for the exact
+status. The mock-first build order (steps 1-16) is complete; step 17
+itself (controlled live verification) requires the user present, real
 credentials configured, and explicit authorization — none of which are
 in scope for this session per the mock-first decision.
 
 Awaiting one of:
-- **"run tests" / "test it"** — to formally close the TESTING gate (the
-  underlying tests already pass; this trigger is about the governance
-  gate, not re-running pytest).
+- **"approve release"** — to open the RELEASE gate (checklist, rollback,
+  monitoring, production readiness).
 - Real Google Sheets / Gujarat UDISE / National UDISE+ credentials, to
   begin L1-L4 controlled live verification per the phase sequence above.
 - Specific follow-up work against any item left unchecked in the mock
   scenario checklist / testing matrix / acceptance criteria above (all
-  explicitly and honestly marked, not silently skipped).
+  explicitly and honestly marked, not silently skipped — carried to
+  backlog at TESTING-gate closure rather than silently waved through).
