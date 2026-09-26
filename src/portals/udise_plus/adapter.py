@@ -17,6 +17,7 @@ alone for a state that might take a moment to appear.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 
 from playwright.sync_api import Locator, Page, expect
@@ -192,7 +193,12 @@ class NationalUDISEPortalAdapter:
             raise AutomationPausedForUser(
                 "CAPTCHA present on National UDISE+ login", checkpoint="login"
             )
-        self.page.get_by_role("button", name="Login").click()
+        # The real button reads "Sign In"; the mock fixture (built before
+        # this was ever checked against the actual portal) uses "Login".
+        # Accept either rather than picking one and breaking the other.
+        self.page.get_by_role(
+            "button", name=re.compile(r"^\s*(Login|Sign In)\s*$", re.IGNORECASE)
+        ).click()
 
     def _captcha_present(self) -> bool:
         # get_by_label("Captcha") doesn't reach the real field: dumped
