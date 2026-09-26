@@ -12,7 +12,7 @@ import re
 from enum import Enum
 from pathlib import Path
 
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 
 
 def ci_exact(text: str) -> re.Pattern[str]:
@@ -31,24 +31,30 @@ def ci_exact(text: str) -> re.Pattern[str]:
     return re.compile(r"^\s*" + re.escape(text.strip()) + r"\s*$", re.IGNORECASE)
 
 
-def labeled_input(page: Page, label_substring: str):
-    """`get_by_label`, scoped to `<input>` elements only.
+def password_input(page: Page) -> Locator:
+    """The real password `<input>`, found by its `type="password"`
+    attribute rather than by label text.
 
     Found live 2026-09-26 against both real portals (not reachable from
     the mock fixtures, which never modeled this): a password field's
     accessible name ambiguously substring-matches a separate "Show/Toggle
     password" visibility button on the same page — a modern UI pattern
-    neither original mock fixture included. Plain `get_by_label` there
-    hits Playwright's strict-mode violation (2 elements), and switching
-    to `ci_exact` instead breaks the match entirely, since the real
-    field's accessible name carries extra decoration (an icon glyph, a
-    required-field "*") that isn't just the label text — the real label
-    was never as clean as the mock's. This keeps substring/case-
-    insensitive tolerance (still needed for that decoration) while the
-    `<input>` filter excludes the sibling `<button>` the plain substring
-    match can't otherwise tell apart from the real field.
+    neither original mock fixture included. Plain `get_by_label("Pass-
+    word")` there hits Playwright's strict-mode violation (2 elements);
+    `ci_exact` broke the match entirely instead, since the real field's
+    accessible name carries extra decoration (an icon glyph, a required-
+    field "*") ci_exact's whole-string equality doesn't tolerate; and
+    `get_by_label(...).and_(page.locator("input"))` filled *something*
+    without erroring but left the real, visible field empty (confirmed
+    live) — the label association apparently resolves to more than the
+    one visible input in a way that didn't behave as expected.
+    `type="password"` sidesteps all of that: it's the field's actual
+    semantic HTML type (the same category of selector as `role=`,
+    reflecting real function — not a CSS/ID guess), and the visibility
+    toggle is a `<button>`, never an `<input type="password">`, so
+    there's no ambiguity to resolve in the first place.
     """
-    return page.get_by_label(label_substring).and_(page.locator("input"))
+    return page.locator('input[type="password"]')
 
 
 class PortalName(str, Enum):
