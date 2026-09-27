@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html><head><title>Observation-mode blocker test</title></head>
+<body>
+  <h2>Navigation (must remain clickable)</h2>
+  <button id="nav">Students Module</button>
+  <button id="go">Go</button>
+  <a class="btn" href="#x">Cancel</a>
+  <button id="signin">Sign In</button>
+
+  <h2>Committing controls (must be blocked)</h2>
+  <button id="save">SAVE STUDENT</button>
+  <button id="submit">Submit</button>
+  <button id="confirm">Confirm Transfer Request</button>
+  <button id="add">Add New Student</button>
+  <input type="submit" id="finalize" value="Finalize" />
+  <button id="create">Create Request</button>
+  <button id="gen">Generate Release Request</button>
+
+  <h2>Late-added control (must also be blocked)</h2>
+  <div id="late"></div>
+
+  <h2>Form fields (must remain typeable)</h2>
+  <input id="name" placeholder="Student Name" />
+  <input id="dob" placeholder="Date of Birth" />
+
+  <pre id="log">no clicks recorded</pre>
+
+  <script>
+    const log = [];
+    const note = t => {
+      log.push(t);
+      document.getElementById('log').textContent = log.join('\\n');
+    };
+    document.querySelectorAll('button, a.btn, input[type=submit]').forEach(el => {
+      el.addEventListener('click', () => note('CLICKED: ' + ((el.innerText || el.value || '').trim())));
+    });
+    setTimeout(() => {
+      const b = document.createElement('button');
+      b.textContent = 'Save Student (late)';
+      b.id = 'lateSave';
+      document.getElementById('late').appendChild(b);
+      b.addEventListener('click', () => note('CLICKED LATE: Save Student'));
+      window.__lateReady = true;
+    }, 200);
+  </script>
+</body>
+</html>
