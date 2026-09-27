@@ -84,6 +84,10 @@ def sheets_repo():
 
     # PEN sheet source data
     repo.write_cell(pen_row, "Name of Student as per Aadhar Card", "Aisha Test Student")
+    repo.write_cell(pen_row, "Gender", "Female")
+    repo.write_cell(pen_row, "Date of Birth", "02/01/2022")
+    repo.write_cell(pen_row, "Mother's Name", "Test Mother")
+    repo.write_cell(pen_row, "Father's Name", "Test Father")
     repo.write_cell(pen_row, "Mother Tongue", "Odia")
     repo.write_cell(pen_row, "Admission Number in Present School (GR No)", "P091")
     repo.write_cell(pen_row, "Height (cm)", "105")

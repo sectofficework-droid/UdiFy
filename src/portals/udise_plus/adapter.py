@@ -36,8 +36,8 @@ _logger = get_logger("portals.national_udise")
 DEFAULT_TIMEOUT_MS = 10_000
 
 AADHAAR_ALREADY_REGISTERED_TEXT = "AADHAAR number is already registered with some other student"
-INITIALIZATION_SUCCESS_TEXT = "The Student has been initialised/Saved Successfully."
 PROFILE_COMPLETE_TEXT = "Data completion is complete."
+IDENTITY_CONFIRMATION_HEADING = "Confirm the following details are correct"
 RELEASE_REQUEST_SUCCESS_TEXT = "Release Request successfully generated"
 
 # Spec "HOW TO VIEW SENT REQUEST" §3 — the only confirmed raw status; any
@@ -54,11 +54,31 @@ def normalize_release_request_status(raw_status: str) -> str:
 
 @dataclass(frozen=True)
 class NewStudentInit:
-    """Spec §37 — fields needed to initialize a new National UDISE+ profile."""
+    """Class/section context for open_add_student() (spec §37). Real
+    navigation confirmed 2026-09-27 goes through the School Dashboard's
+    class row, not a dropdown — student_name is filled later via
+    StudentIdentityFields/fill_identity_fields(), not at navigation time,
+    but is kept here since callers already have all three values
+    together (e.g. field_mapping.py's pen_row_to_new_student_init)."""
 
     student_name: str
     class_name: str
     section: str
+
+
+@dataclass(frozen=True)
+class StudentIdentityFields:
+    """The identity fields the real portal locks permanently once
+    confirmed (see read_identity_confirmation()'s docstring) — kept as
+    their own dataclass rather than folded into fill_general_profile()'s
+    generic dict, so a caller can never accidentally skip verifying them
+    before confirm_identity_details() (Final Authority)."""
+
+    student_name: str
+    gender: str
+    dob: str
+    mother_name: str
+    father_name: str
 
 
 @dataclass(frozen=True)
@@ -262,25 +282,187 @@ class NationalUDISEPortalAdapter:
             return False
 
     # ================= New PEN Entry (spec §37-53, §164, §Y) =================
-    def initialize_new_student(self, details: NewStudentInit) -> None:
-        """Spec §37/§45 — verifies the exact confirmed success modal text,
-        never assumes success from the click alone."""
+    def open_students_module(self) -> None:
+        """Real navigation confirmed 2026-09-27 (live + video review):
+        after login, the portal lands on a hub page ("UDISE+ Common
+        Module") with 4 module cards (School Directory, School Profile &
+        Facilities, Teacher Module, Students Module) — NOT the School
+        Dashboard directly. Students Module's "Go" button opens a NEW
+        browser tab, landing on the academic-year-choice screen.
+
+        This adapter re-points itself at that new tab (`self.page`) from
+        here on, so every subsequent method (choose_current_academic_year,
+        open_add_student, ...) keeps working transparently against it —
+        the original hub-page tab is left open, untouched, in the
+        background.
+        """
+        context = self.page.context
+        with context.expect_page() as new_page_info:
+            self.page.get_by_text("Students Module").locator(
+                "xpath=ancestor::*[self::div or self::section][1]"
+            ).get_by_role("button", name="Go").click()
+        self.page = new_page_info.value
+        self.page.wait_for_load_state("networkidle")
+        log_event(_logger, logging.INFO, "opened Students Module", portal="NATIONAL_UDISE")
+
+    def choose_current_academic_year(self) -> None:
+        """Clicks the "Current Academic Year" card on the academic-
+        choice screen, landing on the School Dashboard. `.first`:
+        confirmed live — the phrase also appears a second time in a
+        paragraph below the card ("navigate to the 'Current Academic
+        year 2026-27' tab..."), so the bare locator matches 2 elements
+        under Playwright's strict mode.
+        """
         p = self.page
-        p.get_by_label("Class").select_option(label=details.class_name)
-        p.get_by_label("Section").select_option(label=details.section)
-        p.get_by_label("Student Name").fill(details.student_name)
-        p.get_by_role("button", name="Add New Student").click()
+        option = p.get_by_text(re.compile(r"Current Academic Year", re.IGNORECASE)).first
+        self._verify_visible(option, "Expected the 'Current Academic Year' card")
+        option.click()
+        p.wait_for_load_state("networkidle")
         self._verify_visible(
-            p.get_by_text(ci_exact(INITIALIZATION_SUCCESS_TEXT)),
-            f"Expected initialization success message: {INITIALIZATION_SUCCESS_TEXT!r}",
+            p.get_by_text(re.compile(r"School Details\s*-\s*Grade Wise", re.IGNORECASE)),
+            "Expected the School Dashboard after choosing academic year",
+        )
+        log_event(_logger, logging.INFO, "chose current academic year", portal="NATIONAL_UDISE")
+
+    def dismiss_pending_notifications(self) -> None:
+        """One or more "Notification" modals (pending release requests
+        etc.) can appear stacked on the School Dashboard on arrival —
+        confirmed live 2026-09-27, at least 2 in a row. Closing only one
+        is not enough; keeps closing until none remain, capped so a
+        genuinely stuck modal can't loop forever."""
+        p = self.page
+        # .first, not the bare locator: 2+ "Close" buttons can be visible
+        # SIMULTANEOUSLY (stacked modals), and Playwright's is_visible/
+        # click on a multi-match locator raise a strict-mode violation
+        # rather than just reporting a count — hit this live.
+        close_btn = p.get_by_role("button", name=re.compile(r"^Close$")).first
+        for _ in range(5):
+            try:
+                if not close_btn.is_visible(timeout=2000):
+                    break
+            except PlaywrightTimeoutError:
+                break
+            close_btn.click()
+            p.wait_for_timeout(300)
+        log_event(_logger, logging.INFO, "dismissed pending notifications", portal="NATIONAL_UDISE")
+
+    def open_add_student(self, details: NewStudentInit) -> None:
+        """Real navigation confirmed 2026-09-27 by reviewing the source
+        screen recording (UDISE/4 PEN ENTRY.mp4, the exact source
+        UDIFY-SPECIFICATIONS.md §34 cites) — the previously-coded
+        assumption here (a generic page with Class/Section dropdowns and
+        an "Add New Student" button, reached directly after login, with
+        its own "initialised/Saved Successfully" dialog) does not match
+        the real portal at all; no such page or dialog appears anywhere
+        in the recording.
+
+        The real path: after login, the School Dashboard ("School
+        Details - Grade Wise" table) lists one collapsed row per class.
+        Clicking a class's row expands it, revealing "Add Student"/"View/
+        Manage" action buttons — the original video-based read of this
+        WAS correct; a later live diagnostic wrongly concluded otherwise
+        because it read hidden DOM text (`textContent`, which ignores
+        visibility) rather than what get_by_role's visibility-aware
+        matching actually sees — confirmed live 2026-09-27 by the user
+        directly, after a failed attempt with the click-less version.
+        Clicking "Add Student" lands directly on the General Profile tab
+        (tab 1 of 4) with Class/Section/Academic Year already fixed from
+        context (shown as a locked breadcrumb) — not selectable here.
+
+        Matching by class name alone is ambiguous when several classes
+        share the same section value (confirmed live: every row's
+        Section is "A" in this school) — `.filter(has_text=section)`
+        narrows to the one row that has both (matching by hidden text is
+        fine for identifying the right row; only clicking a hidden
+        element is the problem, and the expand click below targets the
+        always-visible row itself, not hidden content).
+
+        The "Add Student" button is looked up page-wide after expanding,
+        not scoped to the row locator — real DOM nesting (sibling row vs.
+        descendant) isn't confirmed, and only one row is ever expanded at
+        a time, so this avoids assuming a nesting structure and getting
+        it wrong a third time.
+        """
+        p = self.page
+        # Plain-string name matching (substring, case-insensitive) rather
+        # than a regex: Playwright's role-selector engine mis-parses a
+        # regex whose source contains "/" (e.g. "LKG/KG1/PP2") since it
+        # uses /pattern/ as its own delimiter syntax — hit this live.
+        class_rows = p.get_by_role("row", name=details.class_name)
+        target_row = class_rows.filter(has_text=details.section) if details.section else class_rows
+        # Click the class-NAME CELL specifically, not the row's overall
+        # center — confirmed by re-examining the source recording frame
+        # by frame: the cursor sits precisely over the class-name text
+        # (leftmost column) at the moment of the successful click, not
+        # over the row's full-width center (which for a wide table lands
+        # on a completely different column with no click handler — this
+        # was the actual reason 3 straight live attempts silently did
+        # nothing after clicking the row as a whole).
+        target_row.first.get_by_text(details.class_name).first.click()
+        p.get_by_role("button", name=ci_exact("Add Student")).click()
+        self._verify_visible(
+            p.get_by_text(ci_exact("General Profile")),
+            "Expected the General Profile tab after Add Student",
         )
         log_event(
-            _logger, logging.INFO, "student initialized",
-            portal="NATIONAL_UDISE", student_name=details.student_name,
+            _logger, logging.INFO, "opened Add Student for class/section",
+            portal="NATIONAL_UDISE", class_name=details.class_name, section=details.section,
         )
 
-    def go_to_fill_general_profile(self) -> None:
-        self.page.get_by_role("button", name="Fill General Profile").click()
+    def fill_identity_fields(self, fields: StudentIdentityFields) -> None:
+        """Fills the identity fields at the top of General Profile, then
+        clicks Save — which raises the real portal's own "Confirm the
+        following details are correct" modal (confirmed live 2026-09-27,
+        video review). Field labels are inferred from screen-recording
+        pixels, not a live DOM dump — flagged, same posture as
+        open_add_student() above.
+        """
+        p = self.page
+        p.get_by_label(ci_exact("Student's Name")).fill(fields.student_name)
+        p.get_by_label(ci_exact("Gender")).select_option(label=fields.gender)
+        p.get_by_label(ci_exact("Date of Birth")).fill(fields.dob)
+        p.get_by_label(ci_exact("Mother's Name")).fill(fields.mother_name)
+        p.get_by_label(ci_exact("Father's Name")).fill(fields.father_name)
+        p.get_by_role("button", name=ci_exact("Save")).click()
+
+    def read_identity_confirmation(self) -> str:
+        """Returns the identity-confirmation modal's full text, for the
+        caller to verify against the source-of-truth spreadsheet row
+        BEFORE calling confirm_identity_details() — the real portal's own
+        warning is explicit: "The above information can not be changed
+        once it has been confirmed." (confirmed live 2026-09-27).
+
+        Returns raw text rather than a structured per-field dataclass:
+        the modal's exact DOM (row structure per field) is confirmed only
+        from screen-recording pixels, not a live dump — parsing it into
+        named fields without that confirmation would be guessing a
+        selector as fact (RULEBOOK.md K1). This adapter deliberately
+        never does the identity comparison itself (same posture as
+        TrackByDetailsResult/GlobalSearchResult elsewhere in this file) —
+        that is the engine's Final Authority responsibility.
+        """
+        p = self.page
+        modal = p.get_by_text(ci_exact(IDENTITY_CONFIRMATION_HEADING)).locator(
+            "xpath=ancestor::*[self::div or self::section][1]"
+        )
+        self._verify_visible(modal, "Expected the identity-confirmation modal")
+        return modal.text_content() or ""
+
+    def confirm_identity_details(self) -> None:
+        """Checks every checkbox in the identity-confirmation modal and
+        clicks Confirm. The caller MUST have already verified
+        read_identity_confirmation()'s text against the source-of-truth
+        spreadsheet row (Final Authority) — this is a one-way action on
+        the real portal (see read_identity_confirmation()'s docstring).
+        """
+        p = self.page
+        modal = p.get_by_text(ci_exact(IDENTITY_CONFIRMATION_HEADING)).locator(
+            "xpath=ancestor::*[self::div or self::section][1]"
+        )
+        for checkbox in modal.get_by_role("checkbox").all():
+            checkbox.check()
+        modal.get_by_role("button", name=ci_exact("Confirm")).click()
+        log_event(_logger, logging.INFO, "identity details confirmed", portal="NATIONAL_UDISE")
 
     def check_aadhaar_consent_required(self) -> bool:
         """Spec §39/§142/§I: this dialog is a controlled human-intervention

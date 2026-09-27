@@ -12,7 +12,11 @@ import pytest
 from playwright.sync_api import expect, sync_playwright
 
 from src.portals.base import AutomationPausedForUser
-from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter, NewStudentInit
+from src.portals.udise_plus.adapter import (
+    NationalUDISEPortalAdapter,
+    NewStudentInit,
+    StudentIdentityFields,
+)
 
 FIXTURE_PATH = (
     Path(__file__).resolve().parents[1] / "fixtures" / "udise_plus" / "new_pen_entry.html"
@@ -36,10 +40,21 @@ def test_full_new_pen_entry_flow_without_consent_required():
             adapter = NationalUDISEPortalAdapter(page, timeout_ms=3000)
             adapter.login("sunil.pradhan", "not-a-real-password")
 
-            adapter.initialize_new_student(
+            adapter.open_students_module()
+            adapter.choose_current_academic_year()
+            adapter.dismiss_pending_notifications()
+            adapter.open_add_student(
                 NewStudentInit(student_name="Test Student Two", class_name="LKG/KG1/PP2", section="A")
             )
-            adapter.go_to_fill_general_profile()
+            adapter.fill_identity_fields(
+                StudentIdentityFields(
+                    student_name="Test Student Two", gender="Female", dob="02/01/2022",
+                    mother_name="Test Mother", father_name="Test Father",
+                )
+            )
+            modal_text = adapter.read_identity_confirmation()
+            assert "Test Student Two" in modal_text
+            adapter.confirm_identity_details()
 
             adapter.fill_general_profile(
                 {"Guardian's Name": "Test Guardian", "Mother Tongue of Student": "Odia"}
@@ -68,6 +83,12 @@ def test_pen_import_other_school_active_flow_against_fixture():
         try:
             adapter = NationalUDISEPortalAdapter(page, timeout_ms=3000)
             adapter.login("sunil.pradhan", "not-a-real-password")
+            adapter.open_students_module()
+            adapter.choose_current_academic_year()
+            adapter.dismiss_pending_notifications()
+            adapter.open_add_student(
+                NewStudentInit(student_name="", class_name="LKG/KG1/PP2", section="A")
+            )
 
             existing = adapter.check_aadhaar_availability("999988887777")
             assert existing is True
@@ -95,6 +116,12 @@ def test_aadhaar_availability_check_returns_false_when_not_registered():
         try:
             adapter = NationalUDISEPortalAdapter(page, timeout_ms=300)
             adapter.login("sunil.pradhan", "not-a-real-password")
+            adapter.open_students_module()
+            adapter.choose_current_academic_year()
+            adapter.dismiss_pending_notifications()
+            adapter.open_add_student(
+                NewStudentInit(student_name="", class_name="LKG/KG1/PP2", section="A")
+            )
             existing = adapter.check_aadhaar_availability("111122223333")
             assert existing is False
         finally:
@@ -114,23 +141,35 @@ def test_aadhaar_consent_pauses_and_is_never_auto_clicked():
         try:
             adapter = NationalUDISEPortalAdapter(page, timeout_ms=1500)
             adapter.login("sunil.pradhan", "x")
-            adapter.initialize_new_student(
+            adapter.open_students_module()
+            adapter.choose_current_academic_year()
+            adapter.dismiss_pending_notifications()
+            adapter.open_add_student(
                 NewStudentInit(student_name="Test Student Three", class_name="LKG/KG1/PP2", section="A")
             )
-            adapter.go_to_fill_general_profile()
+            adapter.fill_identity_fields(
+                StudentIdentityFields(
+                    student_name="Test Student Three", gender="Female", dob="02/01/2022",
+                    mother_name="Test Mother", father_name="Test Father",
+                )
+            )
+            adapter.read_identity_confirmation()
+            adapter.confirm_identity_details()
             adapter.fill_general_profile({"Guardian's Name": "G", "Mother Tongue of Student": "Odia"})
             adapter.proceed_from_general_profile()
 
             assert adapter.check_aadhaar_consent_required() is True
             # Confirm the page genuinely did NOT advance to Enrolment Profile —
             # the adapter must not have clicked past the block itself.
-            expect(page.get_by_text("CONSENT FOR DEMOGRAPHIC AUTHENTICATION")).to_be_visible()
-            expect(page.locator("#screen-enrolment")).to_be_hidden()
+            # adapter.page, not the original `page` var: open_students_module()
+            # re-points the adapter at the new "Students Module" tab.
+            expect(adapter.page.get_by_text("CONSENT FOR DEMOGRAPHIC AUTHENTICATION")).to_be_visible()
+            expect(adapter.page.locator("#screen-enrolment")).to_be_hidden()
 
             # Confirm the adapter provides no method that clicks "I Agree" —
             # this is a workflow-engine/operator decision, never automated
             # here. (Structural check: the fixture's own button exists and
             # is untouched by anything the adapter did.)
-            expect(page.locator("#i-agree-btn")).to_be_visible()
+            expect(adapter.page.locator("#i-agree-btn")).to_be_visible()
         finally:
             browser.close()

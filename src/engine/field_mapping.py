@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from src.diagnostics.logging_setup import get_logger, log_event
 from src.portals.udise_gujarat.adapter import CtsDetails, ManualBirthDetails
-from src.portals.udise_plus.adapter import NewStudentInit
+from src.portals.udise_plus.adapter import NewStudentInit, StudentIdentityFields
 
 _logger = get_logger("engine.field_mapping")
 
@@ -82,9 +82,25 @@ def udise_row_to_personal_tab_fields(row: dict[str, str]) -> dict[str, str]:
 def pen_row_to_new_student_init(
     row: dict[str, str], *, class_name: str, section: str
 ) -> NewStudentInit:
-    """PEN_Entry_(National) row -> NewStudentInit (spec §37)."""
+    """PEN_Entry_(National) row -> NewStudentInit (navigation only —
+    which class/section row to open on the School Dashboard)."""
     return NewStudentInit(
         student_name=_full_name(row), class_name=class_name, section=section
+    )
+
+
+def pen_row_to_identity_fields(row: dict[str, str]) -> StudentIdentityFields:
+    """PEN_Entry_(National) row -> StudentIdentityFields — the fields the
+    real portal's "Confirm the following details are correct" modal
+    locks permanently (adapter.py's StudentIdentityFields docstring).
+    Column names per DB-DESIGN.md §A.3's confirmed 22-column PEN header.
+    """
+    return StudentIdentityFields(
+        student_name=_full_name(row),
+        gender=row.get("Gender", ""),
+        dob=row.get("Date of Birth", ""),
+        mother_name=row.get("Mother's Name", ""),
+        father_name=row.get("Father's Name", ""),
     )
 
 

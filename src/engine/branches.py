@@ -18,6 +18,7 @@ from src.engine.field_mapping import (
     pen_row_to_enrolment_profile_fields,
     pen_row_to_facility_profile_fields,
     pen_row_to_general_profile_fields,
+    pen_row_to_identity_fields,
     pen_row_to_new_student_init,
     udise_row_to_birth_details,
     udise_row_to_cts_details,
@@ -25,7 +26,7 @@ from src.engine.field_mapping import (
 )
 from src.portals.base import AutomationPausedForUser
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
-from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
+from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter, NewStudentInit
 from src.sheets.models import Student
 from src.sheets.repository import GREEN, LIGHT_ORANGE, StudentSheetRepository
 
@@ -243,9 +244,29 @@ def run_pen_new_branch(
     init = pen_row_to_new_student_init(pen_row, class_name=student.class_name, section=section)
 
     patch_checkpoint(conn, run_id=run_id, patch={"pen_new_entered": True})
-    national.initialize_new_student(init)
+    national.open_students_module()
+    national.choose_current_academic_year()
+    national.dismiss_pending_notifications()
+    national.open_add_student(init)
     patch_checkpoint(conn, run_id=run_id, patch={"pen_new_initialized": True})
-    national.go_to_fill_general_profile()
+
+    # Real portal behavior confirmed 2026-09-27 (video review): the
+    # identity fields below are locked PERMANENTLY by the portal's own
+    # confirmation modal ("The above information can not be changed once
+    # it has been confirmed.") — Final Authority requires verifying them
+    # against the source-of-truth sheet row before confirming, never
+    # trusting the click alone.
+    identity = pen_row_to_identity_fields(pen_row)
+    national.fill_identity_fields(identity)
+    modal_text = national.read_identity_confirmation()
+    for expected in (identity.student_name, identity.mother_name, identity.father_name, identity.dob):
+        if expected and expected not in modal_text:
+            raise StudentIdentityError(
+                f"{student.student_id!r}: identity-confirmation modal did not show "
+                f"the expected {expected!r} — refusing to confirm a mismatch"
+            )
+    national.confirm_identity_details()
+
     national.fill_general_profile(pen_row_to_general_profile_fields(pen_row))
     national.proceed_from_general_profile()
 
@@ -276,7 +297,7 @@ def run_pen_new_branch(
 
 def run_pen_import_branch(
     national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository,
-    conn: sqlite3.Connection, student: Student, *, environment: str,
+    conn: sqlite3.Connection, student: Student, *, environment: str, section: str = "A",
 ) -> dict:
     """PEN Import — Other School ACTIVE (DB-DESIGN.md §C.3a, the newly-
     confirmed spec section). Only the confirmed ACTIVE/pending outcome —
@@ -314,6 +335,19 @@ def run_pen_import_branch(
             "status": "ACTIVE",
         }
 
+    # Spec's own documented sequence for this exact workflow ("2. Open
+    # UDISE+ Portal" -> "3. Navigate to Add New Student" -> "4. Enable
+    # Aadhaar Availability Check", UDIFY-SPECIFICATIONS.md's PEN Import
+    # section) already required this navigation step before the Aadhaar
+    # check — the previous code skipped straight to the check, only
+    # working because the old (since-corrected) mock fixture put that
+    # checkbox on the very first post-login screen.
+    national.open_students_module()
+    national.choose_current_academic_year()
+    national.dismiss_pending_notifications()
+    national.open_add_student(
+        NewStudentInit(student_name="", class_name=student.class_name, section=section)
+    )
     existing = national.check_aadhaar_availability(student.aadhaar)
     if not existing:
         raise BranchError(

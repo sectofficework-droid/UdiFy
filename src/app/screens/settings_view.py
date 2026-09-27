@@ -137,6 +137,9 @@ class SettingsScreen(QWidget):
 
         form.addRow(QLabel(""), QLabel(""))
         form.addRow(QLabel("<b>Gujarat UDISE portal</b>"), QLabel(""))
+        self.gujarat_login_url = QLineEdit(settings.gujarat_portal.login_url or "")
+        self.gujarat_login_url.setPlaceholderText("https://...")
+        form.addRow("Login URL", self.gujarat_login_url)
         self.gujarat_school_code = QLineEdit(settings.gujarat_portal.school_code or "")
         form.addRow("School code", self.gujarat_school_code)
         self.gujarat_username = QLineEdit(settings.gujarat_portal.username or "")
@@ -150,6 +153,9 @@ class SettingsScreen(QWidget):
 
         form.addRow(QLabel(""), QLabel(""))
         form.addRow(QLabel("<b>National UDISE+ portal</b>"), QLabel(""))
+        self.national_login_url = QLineEdit(settings.national_portal.login_url or "")
+        self.national_login_url.setPlaceholderText("https://...")
+        form.addRow("Login URL", self.national_login_url)
         self.national_username = QLineEdit(settings.national_portal.username or "")
         form.addRow("Username", self.national_username)
         self.national_password = QLineEdit()
@@ -203,9 +209,11 @@ class SettingsScreen(QWidget):
             "GOOGLE_SPREADSHEET_ID_OGR": self.ogr_id.text().strip(),
             "GOOGLE_SPREADSHEET_ID_UDISE": self.udise_id.text().strip(),
             "GOOGLE_SPREADSHEET_ID_PEN": self.pen_id.text().strip(),
+            "GUJARAT_UDISE_LOGIN_URL": self.gujarat_login_url.text().strip(),
             "GUJARAT_UDISE_SCHOOL_CODE": self.gujarat_school_code.text().strip(),
             "GUJARAT_UDISE_USERNAME": self.gujarat_username.text().strip(),
             "GUJARAT_UDISE_PASSWORD": gujarat_password,
+            "NATIONAL_UDISE_PLUS_LOGIN_URL": self.national_login_url.text().strip(),
             "NATIONAL_UDISE_PLUS_USERNAME": self.national_username.text().strip(),
             "NATIONAL_UDISE_PLUS_PASSWORD": national_password,
         })

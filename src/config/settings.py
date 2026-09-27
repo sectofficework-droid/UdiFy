@@ -49,6 +49,7 @@ class GoogleSheetsConfig:
 
 @dataclass(frozen=True)
 class GujaratPortalCredentials:
+    login_url: str | None
     school_code: str | None
     username: str | None
     password: str | None
@@ -56,6 +57,7 @@ class GujaratPortalCredentials:
 
 @dataclass(frozen=True)
 class NationalPortalCredentials:
+    login_url: str | None
     username: str | None
     password: str | None
 
@@ -82,8 +84,12 @@ class Settings:
         missing = []
         if not self.sheets.service_account_file:
             missing.append("GOOGLE_SERVICE_ACCOUNT_FILE")
+        if not self.gujarat_portal.login_url:
+            missing.append("GUJARAT_UDISE_LOGIN_URL")
         if not self.gujarat_portal.username or not self.gujarat_portal.password:
             missing.append("GUJARAT_UDISE_USERNAME/PASSWORD")
+        if not self.national_portal.login_url:
+            missing.append("NATIONAL_UDISE_PLUS_LOGIN_URL")
         if not self.national_portal.username or not self.national_portal.password:
             missing.append("NATIONAL_UDISE_PLUS_USERNAME/PASSWORD")
         if missing:
@@ -117,11 +123,13 @@ def load_settings(env_file: Path | None = None) -> Settings:
         spreadsheet_id_pen=os.environ.get("GOOGLE_SPREADSHEET_ID_PEN") or None,
     )
     gujarat_portal = GujaratPortalCredentials(
+        login_url=os.environ.get("GUJARAT_UDISE_LOGIN_URL") or None,
         school_code=os.environ.get("GUJARAT_UDISE_SCHOOL_CODE") or None,
         username=os.environ.get("GUJARAT_UDISE_USERNAME") or None,
         password=os.environ.get("GUJARAT_UDISE_PASSWORD") or None,
     )
     national_portal = NationalPortalCredentials(
+        login_url=os.environ.get("NATIONAL_UDISE_PLUS_LOGIN_URL") or None,
         username=os.environ.get("NATIONAL_UDISE_PLUS_USERNAME") or None,
         password=os.environ.get("NATIONAL_UDISE_PLUS_PASSWORD") or None,
     )

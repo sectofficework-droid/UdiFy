@@ -67,6 +67,12 @@ def test_interruption_after_udise_branch_resumes_as_condition_3_not_a_repeat(db_
     sheets.set_row_color(udise_row, GREEN)
     student.uid_udise = sheets.get_row_values(udise_row)["UDISE No"]
 
+    sheets.write_cell(pen_row, "Name of Student as per Aadhar Card", "Resume Test Student")
+    sheets.write_cell(pen_row, "Gender", "Female")
+    sheets.write_cell(pen_row, "Date of Birth", "02/01/2022")
+    sheets.write_cell(pen_row, "Mother's Name", "Test Mother")
+    sheets.write_cell(pen_row, "Father's Name", "Test Father")
+
     # A fresh determination against this same (post-interruption) sheet
     # state must recognize UDISE is already done and route to the
     # PEN-only continuation, never back to "run UDISE again."

@@ -53,6 +53,10 @@ def sheets_repo():
     repo.seed_student(student)
 
     repo.write_cell(pen_row, "Name of Student as per Aadhar Card", "Priya Test Student")
+    repo.write_cell(pen_row, "Gender", "Female")
+    repo.write_cell(pen_row, "Date of Birth", "04/03/2022")
+    repo.write_cell(pen_row, "Mother's Name", "Test Mother")
+    repo.write_cell(pen_row, "Father's Name", "Test Father")
     repo.write_cell(pen_row, "Mother Tongue", "Odia")
     repo.write_cell(pen_row, "Admission Number in Present School (GR No)", "P100")
     repo.write_cell(pen_row, "Height (cm)", "104")

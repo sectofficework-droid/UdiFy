@@ -30,32 +30,132 @@
   </section>
 </template>
 
-<template id="tpl-init">
+<template id="tpl-hub">
   <section>
-    <!-- Confirmed live 2026-09-27: a real successful login lands on a
-         dashboard headed "Welcome <name>," - login()'s new post-login
-         check looks for this text, so the mock needs it too. -->
+    <!-- Confirmed live 2026-09-27: a real successful login lands on this
+         hub page ("UDISE+ Common Module") headed "Welcome <name>," -
+         login()'s post-login check looks for this text, so the mock
+         needs it here, not on the School Dashboard further along. -->
     <span>Welcome Mock User,</span>
-    <label for="init-class">Class</label>
-    <select id="init-class">
+    <h2>UDISE+ Common Module</h2>
+    <div>
+      <span>Students Module</span>
+      <button type="button" id="go-students-module-btn">Go</button>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-academic-choice">
+  <section>
+    <h2>UDISE+ Student Module</h2>
+    <div id="academic-year-card">Current Academic Year 2026-27</div>
+    <!-- Real behavior confirmed live: this phrase also appears a second
+         time in a paragraph below the card, which is exactly why
+         choose_current_academic_year() uses .first — the mock needs the
+         duplicate too, or that .first behavior goes untested. -->
+    <p>To initiate the progression activity, navigate to the 'Current Academic year 2026-27' tab.</p>
+  </section>
+</template>
+
+<template id="tpl-dashboard">
+  <section>
+    <h2>School Details - Grade Wise</h2>
+    <!-- Real behavior confirmed live 2026-09-27 (directly by the user,
+         after a click-less version failed live): the class row starts
+         COLLAPSED and must be clicked to expand before "Add Student"/
+         "View/Manage" become visible/actionable — the video-based read
+         was correct all along; a false "correction" mid-session came
+         from a diagnostic that read hidden DOM text (textContent ignores
+         visibility) and wrongly looked like the buttons were present
+         from the start. -->
+    <!-- Section + action buttons are hidden DESCENDANTS of the SAME row
+         (not a separate sibling row) — matches real evidence: a raw
+         text_content() dump of the real row included "A"/"Add Student"/
+         "View/Manage" even while collapsed, meaning they're
+         CSS-hidden-but-present, not physically absent until expansion. -->
+    <table>
+      <tbody>
+        <tr>
+          <td id="class-row-lkg">LKG/KG1/PP2</td>
+          <td class="row-detail" hidden>A</td>
+          <td class="row-detail" hidden>
+            <button type="button" id="add-student-btn">Add Student</button>
+          </td>
+          <td class="row-detail" hidden>
+            <button type="button" id="view-manage-btn">View/Manage</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Real behavior confirmed live: 2 stacked "Notification" modals
+         appear on arrival and must be closed one at a time — the mock
+         needs 2, not 1, or dismiss_pending_notifications()'s loop goes
+         untested. -->
+    <div class="notification-modal">
+      <p>Notification</p>
+      <p>Within state pending request</p>
+      <button type="button" class="notif-close-btn">Close</button>
+    </div>
+    <div class="notification-modal">
+      <p>Notification</p>
+      <p>You have another pending item</p>
+      <button type="button" class="notif-close-btn">Close</button>
+    </div>
+  </section>
+</template>
+
+<template id="tpl-init">
+  <!-- Real navigation confirmed 2026-09-27 (video review of the source
+       recording UDIFY-SPECIFICATIONS.md §34 cites): this is the "Add
+       Student" screen reached via a class row's own action button, NOT a
+       generic page with Class/Section dropdowns reached right after
+       login. Class/Section/Academic Year are already fixed by which row
+       was clicked. -->
+  <section>
+    <h2>General Profile</h2>
+    <label for="identity-name">Student's Name</label>
+    <input id="identity-name" type="text">
+
+    <label for="identity-gender">Gender</label>
+    <select id="identity-gender">
       <option value="">--</option>
-      <option value="lkg">LKG/KG1/PP2</option>
+      <option value="female">Female</option>
+      <option value="male">Male</option>
     </select>
 
-    <label for="init-section">Section</label>
-    <select id="init-section">
-      <option value="">--</option>
-      <option value="a">A</option>
-    </select>
+    <label for="identity-dob">Date of Birth</label>
+    <input id="identity-dob" type="text">
 
-    <label for="init-name">Student Name</label>
-    <input id="init-name" type="text">
+    <label for="identity-mother">Mother's Name</label>
+    <input id="identity-mother" type="text">
 
-    <button type="button" id="add-new-student-btn">Add New Student</button>
+    <label for="identity-father">Father's Name</label>
+    <input id="identity-father" type="text">
 
-    <div id="init-success" hidden>
-      <p>The Student has been initialised/Saved Successfully.</p>
-      <button type="button" id="fill-general-profile-btn">Fill General Profile</button>
+    <button type="button" id="identity-save-btn">Save</button>
+
+    <!-- Real behavior confirmed live: "Confirm the following details are
+         correct" with per-field checkboxes and an explicit "cannot be
+         changed once confirmed" warning. -->
+    <div id="confirm-modal" hidden>
+      <p>Confirm the following details are correct</p>
+      <!-- Checkbox label text deliberately differs from the identity
+           fields' own labels above (e.g. "Confirm ... Name" vs. "...
+           Name") so get_by_label() can't resolve both at once — a real
+           collision hit here: the modal and the form share the page. -->
+      <label><input type="checkbox" id="confirm-class-cb"> Confirm Class</label>
+      <span id="confirm-class-value">LKG/KG1/PP2</span>
+      <label><input type="checkbox" id="confirm-name-cb"> Confirm Name of the Student</label>
+      <span id="confirm-name-value"></span>
+      <label><input type="checkbox" id="confirm-father-cb"> Confirm Father's Name Value</label>
+      <span id="confirm-father-value"></span>
+      <label><input type="checkbox" id="confirm-mother-cb"> Confirm Mother's Name Value</label>
+      <span id="confirm-mother-value"></span>
+      <label><input type="checkbox" id="confirm-dob-cb"> Confirm DOB</label>
+      <span id="confirm-dob-value"></span>
+      <p>The above information can not be changed once it has been confirmed.</p>
+      <button type="button" id="confirm-btn">Confirm</button>
     </div>
 
     <hr>
@@ -331,24 +431,64 @@
     app.appendChild(tpl.content.cloneNode(true));
   }
 
-  show('login');
+  // A new tab opened via "Go" on Students Module (see 'go-students-
+  // module-btn' below) is this same file with ?screen=academic-choice
+  // appended — Playwright's context.expect_page() catches it as a real
+  // new page, same as the real portal opening a new browser tab.
+  if (new URLSearchParams(window.location.search).get('screen') === 'academic-choice') {
+    show('academic-choice');
+    // This "new tab" represents the SAME already-authenticated session
+    // as the original tab (real browser tabs share cookies/session) —
+    // #global-nav's visibility must carry over, not reset to hidden.
+    document.getElementById('global-nav').hidden = false;
+  } else {
+    show('login');
+  }
 
   // Attached to <body>, not #app, so the persistent #global-nav button
   // (outside #app — it must stay reachable no matter which screen the
   // single-page swap put into #app) is covered by the same listener.
   document.body.addEventListener('click', function (e) {
+    if (e.target && e.target.classList && e.target.classList.contains('notif-close-btn')) {
+      e.target.closest('.notification-modal').remove();
+      return;
+    }
+
     var id = e.target && e.target.id;
     if (!id) return;
 
     switch (id) {
       case 'login-btn':
-        show('init');
+        show('hub');
         document.getElementById('global-nav').hidden = false;
         break;
-      case 'add-new-student-btn':
-        document.getElementById('init-success').hidden = false;
+      case 'go-students-module-btn':
+        var sep = window.location.search ? '&' : '?';
+        window.open(window.location.href + sep + 'screen=academic-choice', '_blank');
         break;
-      case 'fill-general-profile-btn':
+      case 'academic-year-card':
+        show('dashboard');
+        break;
+      case 'class-row-lkg':
+        document.querySelectorAll('.row-detail').forEach(function (el) {
+          el.hidden = false;
+        });
+        break;
+      case 'add-student-btn':
+        show('init');
+        break;
+      case 'identity-save-btn':
+        document.getElementById('confirm-name-value').textContent =
+          document.getElementById('identity-name').value;
+        document.getElementById('confirm-father-value').textContent =
+          document.getElementById('identity-father').value;
+        document.getElementById('confirm-mother-value').textContent =
+          document.getElementById('identity-mother').value;
+        document.getElementById('confirm-dob-value').textContent =
+          document.getElementById('identity-dob').value;
+        document.getElementById('confirm-modal').hidden = false;
+        break;
+      case 'confirm-btn':
         show('general');
         break;
       case 'general-next-btn':

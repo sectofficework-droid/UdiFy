@@ -75,6 +75,10 @@ def test_run_entry_auto_routes_to_condition_1_from_sheet_state(db_conn, portals)
     sheets.write_cell(udise_row, "Birth Month", "January")
     sheets.write_cell(udise_row, "Birth Date", "02")
     sheets.write_cell(pen_row, "Name of Student as per Aadhar Card", student.name)
+    sheets.write_cell(pen_row, "Gender", "Female")
+    sheets.write_cell(pen_row, "Date of Birth", "02/01/2022")
+    sheets.write_cell(pen_row, "Mother's Name", "Test Mother")
+    sheets.write_cell(pen_row, "Father's Name", "Test Father")
 
     # No pre-supplied "which condition" hint anywhere — run_entry derives
     # it purely from the sheet state above (both sides NEW -> Condition 1).

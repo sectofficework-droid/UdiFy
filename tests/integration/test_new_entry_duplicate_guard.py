@@ -24,7 +24,7 @@ from src.db.students import upsert_student
 from src.db.workflow_runs import patch_checkpoint, start_run
 from src.engine.branches import BranchError, run_pen_new_branch, run_udise_new_branch
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
-from src.portals.udise_plus.adapter import INITIALIZATION_SUCCESS_TEXT, NationalUDISEPortalAdapter
+from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
 from src.sheets.models import SheetRowRef, Student
 from src.sheets.repository import GREEN, MockSheetsRepository
 
@@ -188,7 +188,8 @@ def test_pen_new_branch_raises_on_prior_interrupted_attempt_never_reinitializes(
             with pytest.raises(BranchError, match="[Mm]anual review"):
                 run_pen_new_branch(national, sheets, db_conn, student, run_id="resumed-pen-run")
 
-            # "Add New Student" was never clicked a second time.
-            assert not page.get_by_text(INITIALIZATION_SUCCESS_TEXT).is_visible()
+            # "Add Student" was never clicked a second time — the General
+            # Profile screen it leads to was never reached.
+            assert not page.get_by_text("General Profile").is_visible()
         finally:
             browser.close()
