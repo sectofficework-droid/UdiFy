@@ -1436,14 +1436,63 @@ is deliberate rather than a tidy-up:
 `.venv\Scripts\pythonw.exe run_udify.py`, via Start Menu shortcut
 `UdiFy.lnk`, working directory `D:\Project\UdiFy`.
 
-**Do not reintroduce packaging** without first solving code signing or
-obtaining a Smart App Control exception from whoever manages that policy.
-Both were explicitly out of scope and neither was attempted.
+## Packaging: deferred to the END of development (user decision, 2026-09-27)
+
+**"We will first final the development then compile to exe."** This
+supersedes the "do not reintroduce packaging" line above, with one
+condition attached: packaging is the **last** step, after development is
+finished — never interleaved with it.
+
+### Why the deferral is the right call
+
+The 2026-09-27 install/remove cycle was pure churn and produced one real
+regression: the package overwrote the working `pythonw.exe` launcher, so the
+app stopped working and the cause was invisible. **Nothing about the
+application was better for having been packaged.** Packaging is a
+distribution concern, and it is the wrong thing to be changing while the
+workflow logic is still moving.
+
+### The blocker that must be solved before that final step
+
+**Building an `.exe` on this machine will produce a file that cannot
+launch.** That is not a packaging bug to be fixed later — it is Windows
+Smart App Control rejecting unsigned executables, and it is the reason the
+app runs from source today. Verified on both build formats (one-folder and
+one-file); the block is about the missing **code signature**, not the
+format.
+
+So the final step needs one of:
+
+1. **Code-sign the build** with a certificate the school owns or buys. The
+   only durable fix; costs money and has a process.
+2. **A Smart App Control exception** from whoever manages that policy on
+   this machine. The specific feature is a *one-way* consumer Windows 11
+   switch (it cannot be re-enabled without reinstalling Windows), so it is
+   a system-security decision entirely the user's to make — never this
+   project's to take.
+3. **Accept running from source permanently**, via the existing
+   `pythonw.exe` Start Menu shortcut, and treat "compile to exe" as dropped
+   rather than deferred.
+
+**Flagged now, at the user's request to do it later, precisely so it is not
+a surprise on the day.** Deciding between these three costs nothing today;
+discovering it at the final build would.
+
+### What is deliberately NOT being done now
+
+- No `installer.spec` / `installer-onefile.spec` / `installer.iss`
+  reintroduced, and no packaging code path kept warm in the tree.
+- The `sys.frozen` / `sys._MEIPASS` handling already in `settings.py` and
+  `mock_fixtures.py` is **left in place** — small, harmless, already tested,
+  and exactly what a future build would need. Removing it now would be
+  rework for no benefit.
 
 ## Next trigger
 
-**RELEASE gate REOPENED.** The wiring is built and tested; what is missing is
-**evidence that a real run works**. Recommended order, cheapest first:
+**Development is being finalised first; packaging/exe is the last step,
+not a current task.** The release gate remains REOPENED — the wiring is
+built and tested, but what is missing is **evidence that a real run works**.
+Recommended order, cheapest first:
 
 1. **L2 — Gujarat portal, read-only.** Never attempted; only its login was
    ever live-checked. Retires the largest untested surface.

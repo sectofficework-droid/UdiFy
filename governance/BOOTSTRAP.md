@@ -52,15 +52,24 @@
   run_udify.py` (windowless, already trusted) is the only working launch
   path**, wired to a Start Menu shortcut `UdiFy.lnk`. Never disable Smart
   App Control — it is the user's decision, and it is a one-way change.
-- **Packaging was removed entirely on 2026-09-27** at the user's request.
-  `installer.spec`, `installer-onefile.spec`, `installer.iss` and all build
-  output are gone. Reason: no packaging target can produce a launchable
-  binary on this machine (the block is about the missing code signature, not
-  the format), so they were dead configuration that also caused a real
-  regression — installing one **overwrote the working `pythonw.exe`
-  shortcut** with an unsigned `.exe` launcher the machine then refused to
-  run. Do not reintroduce packaging without first solving code signing or
-  getting a Smart App Control exception.
+- **Packaging is DEFERRED to the end of development** (user decision,
+  2026-09-27: *"we will first final the development then compile to exe"*).
+  Nothing to do about it today.
+- **⚠️ But the final step has a known blocker, flagged early on purpose.**
+  Building an `.exe` on this machine will produce a file that **cannot
+  launch** — Windows Smart App Control rejects unsigned executables.
+  Verified on both build formats; the block is about the missing code
+  signature, not the packaging format. So "compile to exe" needs one of:
+  (a) code-sign the build with a certificate the school owns/buys, (b) a
+  Smart App Control exception from whoever manages that policy — the
+  specific switch is **one-way** on Windows 11 and is the user's decision
+  alone, or (c) accept running from source permanently and drop the exe
+  idea. Deciding this costs nothing now; finding out at the final build
+  would. Full detail: TODO.md's "Packaging: deferred to the END of
+  development".
+- The `sys.frozen` / `sys._MEIPASS` handling in `settings.py` and
+  `mock_fixtures.py` is **deliberately retained** so a future build needs no
+  rework.
 
 ## Live Verification Gate — where it actually stands
 
