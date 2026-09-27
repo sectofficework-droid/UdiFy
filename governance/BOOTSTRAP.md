@@ -34,7 +34,15 @@
   release ladder is not re-run per change.
 - **Approvals given**: git init; secrets approach; stack lock-in; plan;
   design; UI; **"code it"**; **"test it"**; **"approve release"**.
-- **Tests**: **132/132 passing** (`pytest -q`, 107s) — verified 2026-09-27
+- **🔴 OPEN DEFECT (found 2026-09-27 review, highest priority): real students
+  all misroute to Condition 1.** `list_students()` sets only `ogr_row`, never
+  `udise_row`/`pen_row`, and `entry_router` decides the condition from those
+  — so all ~400 real students read as NEW/NEW. **Fails safely, not
+  dangerous:** `run_udise_new_branch()` raises `StudentIdentityError` before
+  any portal action, so nothing is submitted. But the LIVE Batch Queue is
+  wrong for every student. **Interim: keep `UDIFY_ENVIRONMENT=MOCK` until
+  fixed.** Full detail + fix direction: TODO.md's "OPEN DEFECT".
+- **Tests**: **132/132 passing** (`pytest -q`, 137s) — verified 2026-09-27
   after the live-wiring remediation.
 - **Git**: local `master` was level with `origin/master` at `455c91c`; the
   live-wiring work is **staged, not committed** (see below).

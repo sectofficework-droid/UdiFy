@@ -1487,6 +1487,59 @@ discovering it at the final build would.
   and exactly what a future build would need. Removing it now would be
   rework for no benefit.
 
+## OPEN DEFECT found in review 2026-09-27 — real students misroute (highest priority)
+
+Found while auditing "what is pending" after the live-wiring fix. **Not a
+crash — the app fails safely — but it makes the LIVE Batch Queue wrong for
+every student, so it must be fixed before any real run.**
+
+### The defect
+
+`GoogleSheetsRepository.list_students()` builds each `Student` from its OGR
+row and sets **only** `ogr_row` (verified: `udise_row`/`pen_row` are never
+assigned anywhere in `repository.py`). But `entry_router` decides the entry
+condition from `udise_row`/`pen_row`:
+
+```python
+def determine_udise_state(sheets, student):
+    if student.udise_row is None:
+        return UdiseState.NEW      # <-- every real student lands here
+```
+
+So **all ~400 real students route to Condition 1 (New UDISE + New PEN)** —
+including students who already have a UID, already have a PEN, or are
+already GREEN on both sides. A live operator would see an identical-looking
+queue that is wrong for essentially every row.
+
+### Why it is not a data-corruption emergency
+
+`run_udise_new_branch()` opens with a hard guard:
+
+```python
+if student.udise_row is None:
+    raise StudentIdentityError(f"{student.student_id!r} has no UDISE sheet row")
+```
+
+So every misrouted run **fails before touching the portal** — exactly the
+fail-safe behaviour the spec demands, and a direct benefit of that guard
+having been built. Nothing is written to a government portal. The cost is
+that the tool is useless rather than dangerous, and the operator sees 400
+identical failures.
+
+### Fix direction (not yet implemented)
+
+Resolve each student's `udise_row`/`pen_row` from the UDISE/PEN sheets
+(name + class + DOB, with the existing multi-attribute identity check and
+`AMBIGUOUS` → manual review) at load time, so routing reads real state.
+Requires confirming how a real student maps to a UDISE/PEN tab + row
+(`PH1`/`PH2`/`PH3` selection) — **not guessed**; the tab-per-phase
+mapping is the kind of thing that needs live confirmation before coding.
+
+**Interim mitigation available now**: set `UDIFY_ENVIRONMENT=MOCK` until this
+is fixed, so a run cannot reach the portal even if triggered. The Batch
+Queue is only meaningful in LIVE mode, and in LIVE mode it is currently
+misleading.
+
 ## Next trigger
 
 **Development is being finalised first; packaging/exe is the last step,
