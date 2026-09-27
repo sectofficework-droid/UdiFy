@@ -273,7 +273,18 @@ the first real release onward.
 
 ## Release criteria (gate for "approve release")
 
-- [ ] All TESTING-phase acceptance criteria (TODO.md) pass with evidence.
+- [x] All TESTING-phase acceptance criteria (TODO.md) pass with evidence.
+      **Closed 2026-09-27 under an accepted exception (EX-2026-09-27-01),
+      not unconditionally** — full suite re-run and confirmed **110/110
+      passing** (0 skipped, 136s) at the time of approval. Every acceptance
+      criterion that is actually implemented is checked and passing. The
+      three known-unbuilt retry/recovery flows (save-succeeded-but-unconfirmed
+      retry, sheet-write-failure-after-portal-success recovery, full
+      mid-branch resume for the National UDISE+ multi-tab profile fill) were
+      **knowingly released without**, per the user's explicit decision. See
+      "Accepted exceptions" below for the full risk record, and TODO.md's
+      testing matrix for the exact per-item status, which stays open and
+      honest rather than being ticked off.
 - [x] SECURITY-THREAT-MODEL.md open questions answered or explicitly
       accepted as risk by the school (RULEBOOK.md §J0E exception process
       if any is knowingly deferred) — **closed 2026-09-26**: data
@@ -299,3 +310,48 @@ the first real release onward.
       stamping, SQLite backup/export, formal deployment steps) are left
       as genuine TBDs, not falsely closed — none are load-bearing for
       "approve release" itself.
+
+## Accepted exceptions (RULEBOOK.md §J0E)
+
+### EX-2026-09-27-01 — Release approved with unverified live-portal navigation
+
+| Field | Value |
+| --- | --- |
+| **Exception ID** | EX-2026-09-27-01 |
+| **Affected requirement** | RELEASE-PLAN.md release criterion 1 (all TESTING acceptance criteria pass with evidence) |
+| **Reason** | The National UDISE+ "Add Student" / identity-confirm flow was rebuilt from the project's own screen recordings and has **never run against the real portal** — the live session was paused at the user's instigation (repeat-login account-lockout risk). Live Verification Gate L3 has never completed. The three unbuilt retry/recovery flows in TODO.md's testing matrix would require inventing portal navigation no recording confirms (RULEBOOK.md §J14) to do honestly. |
+| **Scope** | The National UDISE+ New-PEN branch only: `open_add_student()`, `fill_identity_fields()`, `read_identity_confirmation()`, `confirm_identity_details()`. The Gujarat UDISE branch, ND reconciliation, manual review, duplicate-request guards and checkpoint/resume are **not** in scope of this exception — they are unchanged from what was already tested. |
+| **Risk** | If the rebuilt selectors are wrong, the New-PEN branch fails against the real portal. Mitigating: it fails **loudly** (timeout/strict-mode violation), not silently; no sheet is marked GREEN without the spec's full verification sequence, so a wrong selector cannot corrupt the register; the duplicate-request guard means a retry cannot create a second entry. Residual risk accepted: a mid-run interruption during the National multi-tab profile fill routes to manual review rather than resuming, so an operator may need to complete one entry by hand. |
+| **Mitigation** | ~~`UDIFY_ENVIRONMENT` **stays `MOCK`** — the user's explicit decision on approval.~~ **SUPERSEDED 2026-09-27 — see EX-2026-09-27-02.** As originally approved, LIVE mode was a separate, manual `.env` edit that the user would make deliberately, and no live portal automation would be run without their per-run go-ahead. Rollback path recorded above (fall back to manual portal entry; nothing blocks it) is unaffected and remains the primary safety net. |
+| **Owner** | Human project owner (school). |
+| **Approved by** | User, explicit **"approve release"** + "Approve, but keep LIVE off", 2026-09-27. Agent may recommend but cannot self-approve (§J0.12). |
+| **Start date** | 2026-09-27 |
+| **Review / expiry** | Review at Live Verification Gate L3, or immediately on any real-DOM mismatch in the New-PEN flow. **NOW ACTIVE (load-bearing) as of 2026-09-27** — see EX-2026-09-27-02: the mitigation that kept this risk dormant has been withdrawn by the user, so this exception is live rather than hypothetical. |
+
+### EX-2026-09-27-02 — User withdrew the LIVE-off mitigation; LIVE is now on
+
+| Field | Value |
+| --- | --- |
+| **Exception ID** | EX-2026-09-27-02 |
+| **Affected requirement** | The mitigation recorded in EX-2026-09-27-01; and RELEASE-PLAN.md release criterion 1, which is now satisfied **only** by this exception and EX-2026-09-27-01 together. |
+| **Reason** | On 2026-09-27, immediately after approving release with LIVE off, the user directed **"make everything live"** — i.e. to authorise operation against the real government portals and the real OGR/UDISE/PEN registers without waiting for further per-run sign-off. **This materially widens the risk EX-2026-09-27-01 was recorded against, and is recorded here as such rather than folded silently into the original exception.** Verified during this session: `.env` already had `UDIFY_ENVIRONMENT=LIVE` (set earlier, on 2026-09-26, for the Live Verification Gate), so the standing instruction that UdiFy **must not** write to the real registers until further notice is now **withdrawn** — it was being enforced in practice only by the app not being run. |
+| **Scope** | The whole application, in LIVE mode, against **both** real portals and all three real spreadsheets. This is broader than EX-2026-09-27-01, whose scope was the National UDISE+ New-PEN branch alone. |
+| **Risk** | **(a)** The National UDISE+ New-PEN branch (Add Student → identity fields → identity-confirm modal) is still **entirely video-inferred and has never been exercised against the real DOM**; the precise cell-click fix in `open_add_student()` is likewise unverified. A wrong selector fails loudly, not silently, and cannot mark a row GREEN without the spec's full verification sequence — but a run may still need to be abandoned partway. **(b)** L2 has **never been run against the Gujarat (state) portal** — only its login was ever live-checked; the UDISE side of every condition is effectively unverified live. **(c)** L3 has never completed, so no end-to-end LIVE run has ever been proven. **(d)** Mid-run interruption during the National multi-tab profile fill routes to manual review rather than resuming — an operator may need to finish one entry by hand. **(e)** With no per-run sign-off, an unattended or mistaken batch run could submit real entries against a real government account; the duplicate-request guard prevents duplicate *requests* and duplicate *new* entries after an interrupted attempt, but it cannot prevent a wrong-but-valid submission. |
+| **Mitigation** | What still holds, and is the reason this is an exception rather than a stop: the spec's consequential-action verification rule is structurally enforced (nothing is recorded GREEN or `LIVE_VERIFIED_SUCCESS` without locate → verify identity → verify state → act → verify result → record), so a failed or mis-targeted run degrades to a loud, logged, diagnosable stop rather than silent corruption; the operational rollback (revert to manual portal entry) is unaffected and requires no data migration; and a single operator is present at the machine for any live run. **Withdrawn by this exception:** the MOCK default, and the per-run go-ahead requirement. |
+| **Owner** | Human project owner (school). |
+| **Approved by** | User, explicit **"make everything live"**, 2026-09-27. Agent may recommend but cannot self-approve (§J0.12); the agent additionally flags the unverified scope above rather than treating the directive as risk-free. |
+| **Start date** | 2026-09-27 |
+| **Review / expiry** | **Recommend review after the first successful L2 (Gujarat read-only) and the first L3 controlled-student run** — both are the cheapest points at which real evidence can retire (a) and (b). Until then, treat every live run as exploratory: one student, supervised, with the Diagnostics view open. Re-verify at each session start, per RULEBOOK.md §J0G (evidence freshness) — the unverified-selector risk is invalidated by any change to `src/portals/**`. |
+
+## Release approval (recorded 2026-09-27)
+
+**RELEASE gate: APPROVED**, with **EX-2026-09-27-01 and EX-2026-09-27-02** on record. All five release criteria above are closed — four unconditionally, one under the two recorded exceptions.
+
+**What this approval authorises.** For this application "release" uniquely means *the tool is allowed to operate against real government portals and real school spreadsheets*.
+
+- **As first approved (2026-09-27, morning):** approved with `UDIFY_ENVIRONMENT` remaining `MOCK` — a MOCK-mode release, with LIVE activation as a separate, explicitly-approved future step.
+- **As amended (2026-09-27, later — "make everything live"):** **LIVE operation is authorised**, in the full sense — both real portals and all three real registers — **without waiting for per-run sign-off**. This supersedes the LIVE-off scope above.
+
+**This is a material widening of the release's risk, recorded deliberately.** The application has never completed a single end-to-end live run: L3 has never succeeded, the National New-PEN selectors have never touched the real DOM, and the Gujarat portal has never been read live at all. The user is the owner and has directed this; per RULEBOOK.md §J0U that is their call to make, and per §J0E it is recorded as an accepted exception with a review date rather than silently absorbed. What the agent will not do is describe the LIVE path as verified.
+
+**Live smoke tests remain unrun** (see "Smoke tests" above — all three). They are not waived by this approval; they remain the outstanding verification work tracked in TODO.md, and are now the recommended first priority precisely because LIVE is on.
