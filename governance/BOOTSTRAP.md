@@ -95,11 +95,37 @@ LIVE authorisation does not mean the live path is verified.
 > session; if a run fails, diagnose from the Diagnostics view before
 > attempting another.
 
+## Folder structure (verified 2026-09-27)
+
+Authoritative, annotated tree with rationale: **PLAN.md's "File map"**.
+This file only records the facts most likely to be got wrong:
+
+- **`src/` mirrors the architecture** (`app/`, `engine/`, `sheets/`,
+  `portals/{udise_gujarat,udise_plus}/`, `db/`, `diagnostics/`, `config/`)
+  and `tests/` splits `unit/` / `integration/` / `fixtures/`. Both were
+  already correctly organised and were **not** restructured — the
+  untidiness was at ROOT, not inside these.
+- **`tests/live/` is EMPTY.** The L1/L2/L3 live-verification evidence came
+  from throwaway, uncommitted scripts, so it is not reproducible. The folder
+  is reserved so future committed live-verification scripts have a home.
+- **No packaging directory** — removed 2026-09-27, see the note above.
+- **No `pyproject.toml`** — `requirements.txt` + `pytest.ini` only; a
+  pyproject would duplicate dependency truth.
+- **`udify.sqlite3` sits at ROOT**, not in a `data/` folder. `data/` was
+  briefly added for the (now-removed) installer and reverted.
+- Root holds exactly 8 intentional files: `run_udify.py`, `requirements.txt`,
+  `pytest.ini`, `.env`, `.env.example`, `.gitignore`, `AGENTS.md`,
+  `udify.sqlite3`.
+- Ignored-but-present directories (local only, all deliberate): `Scratch/`
+  (UI prototype), `UDISE/` (9 recordings, 167 MB), `credentials/`,
+  `diagnostics/`, `.venv/`, `.pytest_cache/`, `.claude/`.
+
 ## Uncommitted work
 
-**None.** The 2026-09-27 L3-navigation rebuild was committed (`82ca749`).
-The live-wiring remediation described above is staged and awaiting the
-user's commit decision.
+**None at the time of writing**, except the folder-structure
+reconciliation recorded above (`.gitignore` cache entries + PLAN.md /
+BOOTSTRAP.md documentation). The live-wiring remediation and the packaging
+removal are committed as `4fd7c97`.
 
 ## Git state
 
@@ -107,9 +133,11 @@ user's commit decision.
 - Identity configured by the user: `bkdebiprasaddas-blip
   <bkdebiprasaddas@gmail.com>`.
 - `.gitignore` excludes `Scratch/`, `.env*`, `credentials/`, `*.sqlite3`,
-  `*.log`, build artifacts. Only `.env.example` (placeholders) was ever
-  committed — **no real credential has ever entered git history**, re-verified
-  2026-09-26.
+  `*.log`, `UDISE/` + `*.mp4`, and tool caches (`.pytest_cache/`,
+  `.claude/`, `.mypy_cache/`, `.ruff_cache/`). There is deliberately **no**
+  packaging section. Only `.env.example` (placeholders) was ever
+  committed — **no real credential has ever entered git history**,
+  re-verified 2026-09-26.
 - **`UDISE/` is now git-ignored** (2026-09-27, explicit user decision: keep
   the source screen recordings out of git). `.gitignore` carries both a
   `UDISE/` rule and a blanket `*.mp4`. Verified: the rule matches, the folder
@@ -118,6 +146,7 @@ user's commit decision.
   evidence base the master spec was derived from, but the conclusions are
   recorded in `governance/planning/UDIFY-SPECIFICATIONS.md`, so the videos
   themselves aren't needed to build, test, or audit the project.
+
 
 ## Assumptions on record (user may veto per RULEBOOK.md §C2.3)
 

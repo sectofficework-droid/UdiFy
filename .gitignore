@@ -51,6 +51,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Tool caches (regenerated on every run; must never be committed)
+.pytest_cache/
+.claude/
+.mypy_cache/
+.ruff_cache/
+
 # Ad hoc debug/launch output (never a source of truth — see diagnostics/)
 *.log
 
