@@ -4,6 +4,14 @@ state machine, live status, pause/manual-intervention indicator.
 The state-machine "stepper" is populated from the real `pen_case_events`
 audit trail once a run completes/pauses — not simulated — since that
 table is this project's actual source of truth for what happened.
+
+Carries an explicit LIVE confirmation gate (added 2026-09-27): a live run
+writes to a government portal and to the school's real registers, so
+starting one requires a deliberate per-run acknowledgement naming the
+student. This is deliberately *not* the old "needs go-ahead before any
+live run" rule, which the user withdrew on 2026-09-27 — the difference is
+that this is a within-session safety confirmation against a destructive
+action, not a per-run approval request.
 """
 
 from __future__ import annotations
@@ -12,6 +20,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QTableWidget,
@@ -23,6 +32,7 @@ from PySide6.QtWidgets import (
 from src.app.app_context import AppContext, DemoStudentEntry
 from src.app.run_worker import RunWorker
 from src.app.widgets import screen_header, status_chip
+from src.config.settings import Environment
 from src.db.events import get_case_history
 
 
@@ -75,10 +85,18 @@ class RunProgressScreen(QWidget):
         if entry is None:
             self.start_btn.setEnabled(False)
             return
-        self.start_btn.setEnabled(entry.intended_condition is not None)
+        # Every loaded student is runnable. A real student's condition is
+        # derived at run time by entry_router from actual sheet state, and a
+        # MOCK demo case is always runnable too — gating the button on the
+        # fixture-only `intended_condition` would wrongly disable every real
+        # student (they all carry None, since it is a fixture property).
+        self.start_btn.setEnabled(True)
+        live = self.ctx.settings.environment is Environment.LIVE
+        mode = "LIVE (real portals + real registers)" if live else "MOCK (local fixtures)"
         self._append_log(
             f"Loaded {entry.student.name} — {entry.note}"
-            + ("" if entry.intended_condition else " (use ND Reconciliation screen instead)")
+            + ("" if entry.intended_condition else "")
+            + f"\nMode: {mode}"
         )
         self._refresh_stepper()
 
@@ -88,6 +106,10 @@ class RunProgressScreen(QWidget):
     def _start(self) -> None:
         if self.current_entry is None or self.worker is not None:
             return
+        if self.ctx.settings.environment is Environment.LIVE:
+            if not self._confirm_live_run(self.current_entry):
+                self._append_log("Live run cancelled by operator — nothing was done.")
+                return
         self.start_btn.setEnabled(False)
         self.banner.setVisible(False)
         self._append_log("— starting run —")
@@ -98,6 +120,31 @@ class RunProgressScreen(QWidget):
         self.worker.failed.connect(self._on_failed)
         self.worker.finished.connect(self._on_thread_finished)
         self.worker.start()
+
+    def _confirm_live_run(self, entry: DemoStudentEntry) -> bool:
+        """Explicit, per-run confirmation before touching real systems.
+
+        Names the student so a mis-click on the wrong row is visible before
+        a real portal submission happens, and states plainly what the run is
+        authorised to change. No browser is opened and nothing is written
+        until this returns True.
+        """
+        name = entry.student.name
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Warning)
+        box.setWindowTitle("Confirm LIVE run")
+        box.setText(f"About to run a LIVE workflow for:\n\n    {name}")
+        box.setInformativeText(
+            "This drives the REAL Gujarat UDISE and National UDISE+ portals "
+            "and writes to the school's REAL OGR / UDISE / PEN spreadsheets.\n\n"
+            "Each portal action is verified before it is recorded, so a "
+            "failure stops the run rather than marking anything GREEN. If a "
+            "CAPTCHA appears, the run pauses for you to complete it by hand."
+        )
+        box.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ok)
+        box.setDefaultButton(QMessageBox.Cancel)
+        ok = box.exec()
+        return ok == QMessageBox.Ok
 
     def _on_paused(self, reason: str, checkpoint: str) -> None:
         self._append_log(f"PAUSED FOR OPERATOR: {reason} (checkpoint: {checkpoint})")
@@ -120,9 +167,7 @@ class RunProgressScreen(QWidget):
 
     def _on_thread_finished(self) -> None:
         self.worker = None
-        self.start_btn.setEnabled(
-            self.current_entry is not None and self.current_entry.intended_condition is not None
-        )
+        self.start_btn.setEnabled(self.current_entry is not None)
 
     def _refresh_stepper(self) -> None:
         self.stepper.setRowCount(0)

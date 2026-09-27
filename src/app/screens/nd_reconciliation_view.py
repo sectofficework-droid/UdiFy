@@ -18,19 +18,19 @@ from PySide6.QtWidgets import (
 from playwright.sync_api import sync_playwright
 
 from src.app.app_context import AppContext
-from src.app.mock_fixtures import NATIONAL_FIXTURE
+from src.app.portal_factory import open_portal_session
 from src.app.widgets import screen_header
 from src.db.connection import connect
 from src.engine.nd_reconciliation import run_nd_reconciliation
-from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
 
 
 class _NdReconciliationWorker(QThread):
     finished_ok = Signal(str)  # outcome string
     failed = Signal(str)
 
-    def __init__(self, sqlite_path, sheets, student, class_name: str):
+    def __init__(self, settings, sqlite_path, sheets, student, class_name: str):
         super().__init__()
+        self.settings = settings
         self.sqlite_path = sqlite_path
         self.sheets = sheets
         self.student = student
@@ -38,20 +38,28 @@ class _NdReconciliationWorker(QThread):
 
     def run(self) -> None:  # noqa: overrides QThread.run
         conn = connect(self.sqlite_path)
+        session = None
         try:
             with sync_playwright() as pw:
+                # Never headless, in either environment.
                 browser = pw.chromium.launch(headless=False)
                 try:
-                    page = browser.new_page()
-                    page.goto(f"file:///{NATIONAL_FIXTURE.as_posix()}")
-                    national = NationalUDISEPortalAdapter(page, timeout_ms=5000)
-                    national.login("sunil.pradhan", "mock-password")
+                    # Real vs mock decided by portal_factory from Settings.
+                    # ND reconciliation only needs the National portal, so
+                    # the Gujarat page it also opens is simply unused here.
+                    session, _ = open_portal_session(self.settings, browser)
                     outcome = run_nd_reconciliation(
-                        national, self.sheets, conn, self.student,
-                        class_name=self.class_name, environment="MOCK",
+                        session.national,
+                        self.sheets,
+                        conn,
+                        self.student,
+                        class_name=self.class_name,
+                        environment=self.settings.environment.value,
                     )
                     self.finished_ok.emit(outcome)
                 finally:
+                    if session is not None:
+                        session.close()
                     browser.close()
         except Exception as exc:
             self.failed.emit(f"{type(exc).__name__}: {exc}")
@@ -124,7 +132,11 @@ class NdReconciliationScreen(QWidget):
             return
         self.status_label.setText(f"Checking {entry.student.name}…")
         self.worker = _NdReconciliationWorker(
-            self.ctx.settings.sqlite_path, self.ctx.sheets, entry.student, entry.student.class_name,
+            self.ctx.settings,
+            self.ctx.settings.sqlite_path,
+            self.ctx.sheets,
+            entry.student,
+            entry.student.class_name,
         )
         self.worker.finished_ok.connect(self._on_finished)
         self.worker.failed.connect(self._on_failed)

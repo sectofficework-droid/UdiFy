@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from src.app.app_context import AppContext
 from src.app.widgets import StatTile, condition_chip, screen_header
+from src.config.settings import Environment
 
 
 class DashboardScreen(QWidget):
@@ -67,6 +68,7 @@ class DashboardScreen(QWidget):
 
     def _populate(self) -> None:
         entries = self.ctx.demo_students
+        live = self.ctx.settings.environment is Environment.LIVE
         self.stat_total.set_value(str(len(entries)))
         self.stat_ready.set_value(str(sum(1 for e in entries if e.intended_condition)))
         self.stat_pending.set_value(str(sum(1 for e in entries if e.intended_condition is None)))
@@ -75,13 +77,18 @@ class DashboardScreen(QWidget):
         for row, entry in enumerate(entries):
             self.table.setItem(row, 0, QTableWidgetItem(entry.student.name))
             self.table.setItem(row, 1, QTableWidgetItem(entry.student.class_name))
+            # A real student's condition is derived at run time by
+            # entry_router, so never assert one here — say so plainly rather
+            # than showing a fixture-only guess.
             if entry.intended_condition:
                 self.table.setCellWidget(row, 2, condition_chip(entry.intended_condition))
+            elif live:
+                self.table.setItem(row, 2, QTableWidgetItem("derived at run time"))
             else:
                 self.table.setItem(row, 2, QTableWidgetItem("ND reconciliation"))
             self.table.setItem(row, 3, QTableWidgetItem(entry.note))
 
-            run_btn = QPushButton("Run" if entry.intended_condition else "Reconcile")
+            run_btn = QPushButton("Run" if (entry.intended_condition or live) else "Reconcile")
             run_btn.setObjectName("Secondary")
             run_btn.clicked.connect(
                 lambda _checked, sid=entry.student.student_id: self.on_run_requested(sid)

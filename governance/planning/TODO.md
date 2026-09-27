@@ -1363,36 +1363,104 @@ the National UDISE+ multi-tab profile fill) were knowingly released without.
 open and honest - they were NOT ticked off.** The exception is recorded, not
 laundered into a green checkmark.
 
+## RELEASE gate REOPENED — the live path was never wired (2026-09-27)
+
+Full project review found a structural defect that made the granted release
+scope actively dangerous, not merely unverified. `AppContext` built a **real**
+`GoogleSheetsRepository` under `UDIFY_ENVIRONMENT=LIVE`, but all three GUI
+screens hardcoded `file:///.../tests/fixtures/*.html` and passed
+`environment="MOCK"` as a literal. The `*_LOGIN_URL` settings were parsed and
+**never consumed**. `tests/live/` was empty — the L1/L2/L3 evidence came
+from uncommitted throwaway scripts.
+
+Clicking "Start run" would have driven mock pages and written mock results
+into the school's **real** spreadsheets — failing while looking like success.
+It survived two prior reviews because the entire 110-test suite exercised
+only the MOCK branch, and MOCK was the hardcoded, working branch. The LIVE
+branch had zero coverage, so nothing could fail.
+
+**The previous release grant is withdrawn**, not carried forward. Full
+narrative and the correction to this file's earlier "authorised but
+unverified" framing: RELEASE-PLAN.md's "REOPENED: the release was unsafe as
+granted".
+
+### Fixed and verified (user authorised as a MAJOR change)
+
+- New `src/app/portal_factory.py` = the **single** real-vs-mock decision
+  point, from `Settings`. All three screens use it.
+- **No silent fallback** in LIVE: missing credential or non-HTTP URL raises
+  before any page opens.
+- `list_students()` populates the Batch Queue from the **real OGR register**
+  in LIVE mode.
+- **Second bug fixed in the same review**: Run/Start buttons were gated on
+  the MOCK-only `intended_condition` field, so **every real student's Run
+  button was disabled**. Real students now show "derived at run time".
+- Per-run LIVE confirmation dialog naming the student.
+- **132/132 tests pass** (was 110); 22 new, incl. 6 that drive the LIVE branch.
+
+### Still unverified
+
+Live *wiring* is proven. Live *execution* is not: no live run has ever
+happened, the National Add-Student selectors are still video-inferred only,
+and Gujarat has still never been read live.
+
+## Packaging removed (2026-09-27, user request)
+
+**"Remove everything related to exe and installer."** Done, and the removal
+is deliberate rather than a tidy-up:
+
+- Deleted: `installer.spec`, `installer-onefile.spec`, `installer.iss`,
+  `dist\`, `dist_installer\`, `build\`, `UdiFy.exe`, `UdiFy-Setup.exe`.
+- `.gitignore` lost its whole PyInstaller/packaging section; it now carries
+  an explicit note explaining *why* there is none, so nobody helpfully
+  re-adds it.
+- `settings.py` reverted to the simple `PROJECT_ROOT`; the install-root
+  marker lookup and the `data\` subfolder for the audit DB are gone, since
+  both existed only to serve an install root that no longer exists.
+- **Uninstalled** properly (via the generated uninstaller, which correctly
+  removed program files and left the real `.env`/`credentials`/audit DB
+  alone) and then removed the leftover data directory after verifying a
+  backup.
+- **Repaired a real regression**: installing the package had overwritten the
+  working `UdiFy.lnk` Start Menu shortcut — which pointed at
+  `.venv\Scripts\pythonw.exe`, a binary Smart App Control trusts — with one
+  pointing at the unsigned PyInstaller `.exe`, which this machine blocks.
+  The shortcut has been restored to the `pythonw.exe` form. **This is why
+  the app appeared to stop working after the install**, and it would have
+  happened again on every future install.
+- **Kept** (not installer-specific, genuinely valuable): the warning when
+  `.env` is missing, so a misconfigured run says so instead of silently
+  defaulting to MOCK.
+
+**Launch path, unchanged and the only one that works here:**
+`.venv\Scripts\pythonw.exe run_udify.py`, via Start Menu shortcut
+`UdiFy.lnk`, working directory `D:\Project\UdiFy`.
+
+**Do not reintroduce packaging** without first solving code signing or
+obtaining a Smart App Control exception from whoever manages that policy.
+Both were explicitly out of scope and neither was attempted.
+
 ## Next trigger
 
-**RELEASE gate closed** ("approve release", then "make everything live",
-2026-09-27). Phase: **OPERATE, running LIVE**. The release ladder
-(DISCOVERY->RELEASE) is complete and is **not** re-run for ordinary changes
-from here - RULEBOOK.md §F's "already-running project" clause applies:
-**§J12B's PATCH / MINOR / MAJOR classification is the operative gate for
-day-to-day work.** A PATCH proceeds in-task; a MINOR change updates the
-affected spec/TODO first; a MAJOR change reopens the relevant gate.
+**RELEASE gate REOPENED.** The wiring is built and tested; what is missing is
+**evidence that a real run works**. Recommended order, cheapest first:
 
-Nothing is blocking. **Because LIVE is now authorised, verifying the live
-path stops being optional** - it is the highest-value work available, since
-almost every outstanding risk in EX-2026-09-27-02 is simply "never been run
-against the real site."
+1. **L2 — Gujarat portal, read-only.** Never attempted; only its login was
+   ever live-checked. Retires the largest untested surface.
+2. **L3 — one supervised test student**, to verify the rebuilt Add Student
+   navigation + identity-confirm modal against the real DOM. The GUI now
+   gates this behind a confirmation dialog naming the student.
 
-> **Account-safety rule, still in force**: do not rapid-retry logins against
-> the live portal. Repeated real logins risk tripping fraud detection and
-> getting the school's account flagged or locked. One deliberate session; if
-> a run fails, read the Diagnostics view before trying again. The old
-> "needs per-run go-ahead" rule is withdrawn, but this one is not.
+Then say **"approve release"** to re-grant, against real evidence.
+
+Standing rules: a CAPTCHA pauses for manual completion by design — never
+auto-solved. Never rapid-retry logins (account-lockout risk); one deliberate
+session, read Diagnostics before retrying. Never disable Smart App Control.
 
 Awaiting one of:
-- **L2 on the Gujarat (state) portal** - never attempted at all; only its
-  login has been live-verified. Cheapest first step, read-only, and retires
-  the largest untested surface in EX-2026-09-27-02.
-- **L3 attempt #2** - one controlled, supervised real test student, to
-  verify the rebuilt Add Student navigation + identity-confirm modal against
-  the real DOM (currently video-inferred only, flagged as such).
-- The 3 unbuilt retry/recovery flows, now materially more valuable with LIVE
-  on - they cover exactly the failure modes a live run can now hit.
+- The two live verification steps above.
+- The 3 unbuilt retry/recovery flows, now materially more valuable — they
+  cover exactly the failure modes a real live run can hit.
 - Specific follow-up against any item still left unchecked in the mock
   scenario checklist / testing matrix / acceptance criteria above (all
   explicitly and honestly marked, not silently skipped).

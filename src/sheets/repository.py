@@ -61,6 +61,8 @@ class StudentSheetRepository(Protocol):
         self, row_ref: SheetRowRef, column: str, expected_value: str
     ) -> bool: ...
 
+    def list_students(self) -> list[Student]: ...
+
 
 @dataclass
 class _MockRow:
@@ -204,6 +206,15 @@ class MockSheetsRepository:
             return False
         row = self._rows.get(self._row_key(row_ref), _MockRow())
         return row.values.get(column) == expected_value
+
+    def list_students(self) -> list[Student]:
+        """MOCK counterpart of GoogleSheetsRepository.list_students().
+
+        Returns the explicitly seeded students — the app's own demo dataset,
+        never anything resembling a real student record.
+        """
+        self._check_network()
+        return list(self._students.values())
 
 
 def _col_letter(index: int) -> str:
@@ -563,3 +574,14 @@ class GoogleSheetsRepository:
             if values.get("PEN", "").strip() == pen.strip():
                 return self._student_from_ogr_row(row_ref, values)
         return None
+
+    def list_students(self) -> list[Student]:
+        """Every student on the OGR master register, in sheet order.
+
+        This is what LIVE mode uses to populate the Batch Queue — the OGR is
+        the school's own master list and the documented source of truth
+        (DB-DESIGN.md §A.1, spec §AF), so a live run must offer the real
+        students rather than the MOCK sample dataset. Read-only: it performs
+        no writes and touches no portal.
+        """
+        return [self._student_from_ogr_row(r, v) for r, v in self._iter_ogr_rows()]

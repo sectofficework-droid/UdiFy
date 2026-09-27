@@ -1,34 +1,49 @@
 """Shared application state: settings, DB connection, sheets repository.
 
 One instance is created at startup and passed to every screen. In MOCK
-mode (the only mode usable before the Live Verification Gate —
-`GoogleSheetsRepository` raises `NotImplementedError` for every method
-until then) the sheets repository is seeded with clearly-labeled sample
-students spanning Conditions 1-4, so the Dashboard isn't empty on first
-launch. This sample data is never mistaken for real student records — it
-is never written to `students`/`request_cases` unless a run actually
-processes it, and every screen that shows it is labeled "MOCK sample
-data."
+mode the sheets repository is seeded with clearly-labeled sample students
+spanning Conditions 1-4, so the Dashboard isn't empty on first launch. This
+sample data is never mistaken for real student records — it is never written
+to `students`/`request_cases` unless a run actually processes it, and every
+screen that shows it is labeled "MOCK sample data."
+
+In LIVE mode the repository is the real `GoogleSheetsRepository` and
+`demo_students` is populated from the school's actual OGR master register
+instead (see `load_live_students`), so an operator sees real students
+instead of the demo set. This is what makes a live run actually perform
+real work — before 2026-09-27 the GUI had no live student list at all, and
+every screen was hardcoded to the mock fixtures.
 """
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 
 from src.config.settings import Environment, Settings, load_settings
 from src.db.connection import connect
+from src.diagnostics.logging_setup import get_logger, log_event
 from src.sheets.models import SheetRowRef, Student
 from src.sheets.repository import GoogleSheetsRepository, MockSheetsRepository, StudentSheetRepository
+
+_logger = get_logger("app.app_context")
+
 
 
 @dataclass(frozen=True)
 class DemoStudentEntry:
-    """One row of the MOCK-mode sample dataset. `intended_condition` is
-    how this demo case was deliberately constructed (Conditions 1-4, or
-    None for the ND-reconciliation example) — not a generic routing
-    inference; a real Dashboard reading live sheet data would derive this
-    from row state via the engine layer instead."""
+    """One row of the Batch Queue.
+
+    `intended_condition` is how a MOCK demo case was deliberately
+    constructed (Conditions 1-4, or None for the ND-reconciliation example).
+    It is a property of the hand-built fixture, NOT something derivable by
+    inspection — for a real student the routing is derived at run time by
+    `entry_router.determine_entry_condition()` from actual sheet state, and
+    the UI shows the derived result (or "needs review"). Storing None for a
+    real student is therefore not "no condition", it is "not known until
+    routed" — the Run button is enabled either way.
+    """
 
     student: Student
     intended_condition: int | None
@@ -54,9 +69,50 @@ class AppContext:
         self.demo_students: list[DemoStudentEntry] = []
         if isinstance(self.sheets, MockSheetsRepository):
             self.demo_students = seed_demo_students(self.sheets)
+        else:
+            self.demo_students = load_live_students(self.sheets)
+        self.live_load_error: str | None = None
 
     def close(self) -> None:
         self.conn.close()
+
+
+def load_live_students(sheets: StudentSheetRepository) -> list[DemoStudentEntry]:
+    """Read the school's real students from the OGR master register.
+
+    Deliberately never raises: a failure to reach Google Sheets (bad
+    service-account path, revoked sharing, network down) must not stop the
+    app from starting and showing the operator a diagnosable message. The
+    error is recorded on the context and surfaced in the UI instead — an
+    operator seeing "could not load real students" acts; an app that dies at
+    import time does not.
+    """
+    try:
+        students = sheets.list_students()
+    except Exception as exc:
+        log_event(
+            _logger, logging.ERROR,
+            "failed to load real students from the OGR register",
+            error_code="OGR_LOAD_FAILED", error=f"{type(exc).__name__}: {exc}",
+        )
+        return []
+
+    entries = [
+        DemoStudentEntry(
+            student=student,
+            intended_condition=None,
+            note=(
+                "Real student from OGR — entry condition is derived at run "
+                "time from the actual UDISE/PEN sheet state"
+            ),
+        )
+        for student in students
+    ]
+    log_event(
+        _logger, logging.INFO, "loaded real students from the OGR register",
+        count=len(entries),
+    )
+    return entries
 
 
 def seed_demo_students(sheets: MockSheetsRepository) -> list[DemoStudentEntry]:

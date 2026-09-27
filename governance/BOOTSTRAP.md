@@ -3,35 +3,41 @@
 > Read this every session (RULEBOOK.md §0/§C.2 — ALWAYS). Curated snapshot,
 > not an archive — see RULEBOOK.md §D size-discipline rule.
 
-## Current state (as of 2026-09-27)
+## Current state (as of 2026-09-27, later)
 
-- **Phase**: **OPERATE**, **running LIVE**. The full DISCOVERY→RELEASE ladder
-  is **complete**.
-- **RELEASE gate: APPROVED 2026-09-27**. First scoped to keep
-  `UDIFY_ENVIRONMENT` at `MOCK`; **later the same day amended by the user's
-  explicit "make everything live"** — LIVE operation against **both real
-  portals and all three real registers is now authorised**, without per-run
-  sign-off. Recorded as **EX-2026-09-27-01 + EX-2026-09-27-02**
-  (RELEASE-PLAN.md), the second being a deliberate, separately-recorded
-  widening of the first's risk — not a silent merge.
-- **`.env` is `UDIFY_ENVIRONMENT=LIVE`** (set 2026-09-26 for the Live
-  Verification Gate). No edit was needed to "go live"; it was already live.
-- **⚠️ Read this before running anything.** The app has **never completed a
-  single end-to-end live run**. L3 never succeeded, the National New-PEN
-  selectors have never touched the real DOM, and the Gujarat portal has never
-  been read live at all. Treat every live run as **exploratory**: one
-  student, supervised, Diagnostics view open. See "Live Verification Gate"
-  below.
+- **Phase**: **OPERATE**. The DISCOVERY→RELEASE ladder ran, but the
+  **RELEASE gate is REOPENED** — see below.
+- **🔴 RELEASE REOPENED 2026-09-27.** A full project review found the live
+  path **was never wired**: `AppContext` built a real
+  `GoogleSheetsRepository` under `UDIFY_ENVIRONMENT=LIVE`, but all three
+  GUI screens hardcoded `file:///.../tests/fixtures/*.html` and passed
+  `environment="MOCK"` as a literal. `*_LOGIN_URL` settings were parsed and
+  never consumed. Clicking "Start run" would have driven mock pages and
+  written mock results into the school's **real** spreadsheets. The earlier
+  release grant is **withdrawn**, not carried forward. Full record:
+  RELEASE-PLAN.md's "REOPENED: the release was unsafe as granted".
+- **✅ Remediation implemented and tested (same session, user-authorised as a
+  MAJOR change)**: new `src/app/portal_factory.py` is the single place that
+  decides real-vs-mock from `Settings`; all three screens use it; no silent
+  mock fallback in LIVE; `list_students()` populates the Batch Queue from
+  the real OGR register; real students are runnable (the old
+  `intended_condition` gate silently disabled them); per-run LIVE
+  confirmation dialog. **132/132 tests pass**, including 6 that specifically
+  drive the LIVE branch — the branch that previously had zero coverage.
+- **`.env` is `UDIFY_ENVIRONMENT=LIVE`.**
+- **⚠️ Live wiring is verified; live *execution* is not.** No live run has
+  ever been performed. The National Add-Student selectors are still
+  video-inferred only, and the Gujarat portal has still never been read
+  live. See "Live Verification Gate" below.
 - **Gate**: none open. Per RULEBOOK.md §F's already-running-project clause,
   **§J12B PATCH/MINOR/MAJOR classification governs day-to-day work** — the
   release ladder is not re-run per change.
 - **Approvals given**: git init; secrets approach; stack lock-in; plan;
   design; UI; **"code it"**; **"test it"**; **"approve release"**.
-- **Tests**: **110/110 passing, 0 skipped** (`pytest -q`, 136s) — verified
-  2026-09-27, the day of release approval.
-- **Git**: local `master` is **26 commits ahead of `origin/master`**
-  (unpushed — only push when asked). HEAD `46ecb88`. **13 files of work are
-  uncommitted**, see below.
+- **Tests**: **132/132 passing** (`pytest -q`, 107s) — verified 2026-09-27
+  after the live-wiring remediation.
+- **Git**: local `master` was level with `origin/master` at `455c91c`; the
+  live-wiring work is **staged, not committed** (see below).
 
 ## Real environment versions (this machine — the school's actual
 ## UDISE-operations machine, confirmed 2026-09-26)
@@ -41,11 +47,20 @@
 - Playwright **1.63.0** (Chromium present; every test launches a *visible*
   browser) · PySide6 **6.11.2** (real GUI launched and screenshotted).
 - No Node.js dependency.
-- **Smart App Control blocks unsigned `.exe` files** on this machine, so the
-  PyInstaller build will not launch here. `.venv\Scripts\pythonw.exe
-  run_udify.py` (windowless, already trusted) is the real "launch UdiFy"
-  path, wired to a Start Menu shortcut. **Never disable Smart App Control** —
-  it is the user's decision, and it is a one-way change.
+- **Smart App Control blocks unsigned `.exe` files** on this machine, so a
+  PyInstaller build will not launch here. **`.venv\Scripts\pythonw.exe
+  run_udify.py` (windowless, already trusted) is the only working launch
+  path**, wired to a Start Menu shortcut `UdiFy.lnk`. Never disable Smart
+  App Control — it is the user's decision, and it is a one-way change.
+- **Packaging was removed entirely on 2026-09-27** at the user's request.
+  `installer.spec`, `installer-onefile.spec`, `installer.iss` and all build
+  output are gone. Reason: no packaging target can produce a launchable
+  binary on this machine (the block is about the missing code signature, not
+  the format), so they were dead configuration that also caused a real
+  regression — installing one **overwrote the working `pythonw.exe`
+  shortcut** with an unsigned `.exe` launcher the machine then refused to
+  run. Do not reintroduce packaging without first solving code signing or
+  getting a Smart App Control exception.
 
 ## Live Verification Gate — where it actually stands
 
@@ -80,16 +95,11 @@ LIVE authorisation does not mean the live path is verified.
 > session; if a run fails, diagnose from the Diagnostics view before
 > attempting another.
 
-## Uncommitted work (not in git — read before assuming HEAD is complete)
+## Uncommitted work
 
-13 files, +505/−57: the L3 navigation rebuild. New adapter methods
-`open_students_module()` / `choose_current_academic_year()` /
-`dismiss_pending_notifications()`, a rebuilt `open_add_student()`, the
-identity-field trio, plus the fixture, `branches.py`, `field_mapping.py`,
-settings, `.env.example` and 6 test files. **TODO.md (+312 lines) holds the
-real engineering record**, including a wrong mid-session "correction" that
-was reverted — kept deliberately, because the back-and-forth is the evidence
-that selectors were verified rather than guessed.
+**None.** The 2026-09-27 L3-navigation rebuild was committed (`82ca749`).
+The live-wiring remediation described above is staged and awaiting the
+user's commit decision.
 
 ## Git state
 
@@ -137,13 +147,26 @@ that selectors were verified rather than guessed.
 
 ## Next trigger
 
-**RELEASE approved; phase OPERATE, running LIVE.** Nothing is blocking. Since
-LIVE is now on, the highest-value next work is no longer optional polish — it
-is **verifying the live path that has never actually run**: L2 on the Gujarat
-portal (never attempted), then one supervised L3 run on a single test
-student. See TODO.md's "Next trigger" for the full menu.
+**RELEASE gate is REOPENED** (2026-09-27) — the live path was not wired and
+the previous grant is withdrawn. The wiring is now built and tested; what
+remains is **evidence that a real run works**.
 
-**To change anything of substance now**, say which: a **PATCH** proceeds
-directly; a **MINOR CHANGE** gets its spec/TODO updated first; a **MAJOR
-CHANGE** reopens the relevant gate. There is no trigger phrase needed to
-*stay* in OPERATE — only to reopen a gate.
+**Recommended order, cheapest first:**
+1. **L2 — Gujarat portal, read-only.** Never attempted; only its login has
+   ever been live-checked. Retires the largest untested surface.
+2. **L3 — one supervised test student.** Verifies the rebuilt Add Student
+   navigation and identity-confirm modal against the real DOM. A
+   per-run confirmation dialog now guards this in the GUI.
+
+Both need the operator present at the machine. Then say **"approve release"**
+again to re-grant, against real evidence rather than an assumption.
+
+**Standing rules**: a CAPTCHA pauses the run for manual completion by
+design — never auto-solved. Never rapid-retry logins against the live
+portals (fraud-detection / account-lockout risk); one deliberate session,
+read the Diagnostics view before retrying. Never disable Smart App Control.
+
+**To change anything of substance now**: a **PATCH** proceeds directly; a
+**MINOR CHANGE** gets its spec/TODO updated first; a **MAJOR CHANGE**
+reopens the relevant gate. There is no trigger phrase needed to *stay* in
+OPERATE — only to reopen or re-grant a gate.

@@ -19,12 +19,10 @@ from PySide6.QtWidgets import (
 from playwright.sync_api import sync_playwright
 
 from src.app.app_context import AppContext
-from src.app.mock_fixtures import GUJARAT_FIXTURE, NATIONAL_FIXTURE
+from src.app.portal_factory import open_portal_session
 from src.app.widgets import status_chip, screen_header
 from src.db.connection import connect
 from src.engine.approval_batch import run_batch_status_check
-from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
-from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter
 
 _OPEN_CASE_QUERY = """
     SELECT request_case_id, student_id, case_type, portal, request_type,
@@ -39,32 +37,35 @@ class _BatchCheckWorker(QThread):
     finished_ok = Signal(dict)  # request_case_id -> ApprovalCheck
     failed = Signal(str)
 
-    def __init__(self, sqlite_path, request_case_ids: list[str]):
+    def __init__(self, settings, sqlite_path, request_case_ids: list[str]):
         super().__init__()
+        self.settings = settings
         self.sqlite_path = sqlite_path
         self.request_case_ids = request_case_ids
 
     def run(self) -> None:  # noqa: overrides QThread.run
         conn = connect(self.sqlite_path)
+        session = None
         try:
             with sync_playwright() as pw:
+                # Never headless, in either environment.
                 browser = pw.chromium.launch(headless=False)
                 try:
-                    gujarat_page = browser.new_page()
-                    gujarat_page.goto(f"file:///{GUJARAT_FIXTURE.as_posix()}")
-                    gujarat = GujaratUDISEPortalAdapter(gujarat_page, timeout_ms=5000)
-                    gujarat.login("24224100067", "mock-password")
-
-                    national_page = browser.new_page()
-                    national_page.goto(f"file:///{NATIONAL_FIXTURE.as_posix()}")
-                    national = NationalUDISEPortalAdapter(national_page, timeout_ms=5000)
-                    national.login("sunil.pradhan", "mock-password")
-
+                    # Real vs mock decided by portal_factory from Settings,
+                    # not hardcoded here (see run_worker.py's docstring for
+                    # why that distinction matters).
+                    session, _ = open_portal_session(self.settings, browser)
                     results = run_batch_status_check(
-                        gujarat, national, conn, self.request_case_ids, environment="MOCK",
+                        session.gujarat,
+                        session.national,
+                        conn,
+                        self.request_case_ids,
+                        environment=self.settings.environment.value,
                     )
                     self.finished_ok.emit(results)
                 finally:
+                    if session is not None:
+                        session.close()
                     browser.close()
         except Exception as exc:
             self.failed.emit(f"{type(exc).__name__}: {exc}")
@@ -144,7 +145,9 @@ class ApprovalMonitoringScreen(QWidget):
             return
         self.check_btn.setEnabled(False)
         self.status_label.setText(f"Checking {len(ids)} case(s)…")
-        self.worker = _BatchCheckWorker(self.ctx.settings.sqlite_path, ids)
+        self.worker = _BatchCheckWorker(
+            self.ctx.settings, self.ctx.settings.sqlite_path, ids
+        )
         self.worker.finished_ok.connect(self._on_finished)
         self.worker.failed.connect(self._on_failed)
         self.worker.finished.connect(self._on_thread_finished)

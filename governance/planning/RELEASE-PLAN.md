@@ -343,7 +343,13 @@ the first real release onward.
 | **Start date** | 2026-09-27 |
 | **Review / expiry** | **Recommend review after the first successful L2 (Gujarat read-only) and the first L3 controlled-student run** — both are the cheapest points at which real evidence can retire (a) and (b). Until then, treat every live run as exploratory: one student, supervised, with the Diagnostics view open. Re-verify at each session start, per RULEBOOK.md §J0G (evidence freshness) — the unverified-selector risk is invalidated by any change to `src/portals/**`. |
 
-## Release approval (recorded 2026-09-27)
+## RELEASE gate closed (2026-09-27)
+
+> **SUPERSEDED — see "REOPENED: the release was unsafe as granted" below.**
+> Kept as the historical record; the release scope was materially widened
+> later the same day, and then the whole gate was reopened when a full
+> project review found the live path was not wired at all.
+
 
 **RELEASE gate: APPROVED**, with **EX-2026-09-27-01 and EX-2026-09-27-02** on record. All five release criteria above are closed — four unconditionally, one under the two recorded exceptions.
 
@@ -354,4 +360,89 @@ the first real release onward.
 
 **This is a material widening of the release's risk, recorded deliberately.** The application has never completed a single end-to-end live run: L3 has never succeeded, the National New-PEN selectors have never touched the real DOM, and the Gujarat portal has never been read live at all. The user is the owner and has directed this; per RULEBOOK.md §J0U that is their call to make, and per §J0E it is recorded as an accepted exception with a review date rather than silently absorbed. What the agent will not do is describe the LIVE path as verified.
 
-**Live smoke tests remain unrun** (see "Smoke tests" above — all three). They are not waived by this approval; they remain the outstanding verification work tracked in TODO.md, and are now the recommended first priority precisely because LIVE is on.
+**Live smoke tests remain unrun** (see "Smoke tests" above — all three). They
+are not waived by this approval; they remain the outstanding verification work
+tracked in TODO.md, and are now the recommended first priority precisely
+because LIVE is on.
+
+## REOPENED: the release was unsafe as granted (2026-09-27, later)
+
+**The RELEASE gate is REOPENED.** Not because the user's judgement was
+wrong, but because a full project review found a structural defect that made
+the granted scope actively dangerous rather than merely unverified.
+
+### What the review found
+
+`AppContext` correctly built a **real** `GoogleSheetsRepository` whenever
+`UDIFY_ENVIRONMENT=LIVE`. But **every** GUI screen independently hardcoded
+the local fixture URLs and passed `environment="MOCK"` as a literal:
+
+- `src/app/run_worker.py` — `file:///.../new_entry.html` ×2, `environment="MOCK"`
+- `src/app/screens/approval_monitoring.py` — same
+- `src/app/screens/nd_reconciliation_view.py` — same
+
+Grep-confirmed: **no code anywhere navigated to a real portal URL.** The
+`GUJARAT_UDISE_LOGIN_URL` / `NATIONAL_UDISE_PLUS_LOGIN_URL` settings added
+on 2026-09-27 were parsed into `Settings` and **never consumed by anything**.
+`tests/live/` was empty — the L1/L2/L3 evidence was produced by throwaway
+scripts that were never committed, so it was not reproducible either.
+
+**Consequence**: with the release exactly as granted above, an operator
+clicking "Start run" would open a browser on a **local HTML file**, log into
+it with a mock password, and write that mock result into the school's
+**real** Google Sheet. That is worse than a no-op: it *looks* like it worked.
+It is also a plausible way to corrupt the real OGR/UDISE/PEN registers with
+fabricated GREEN rows.
+
+**Why it survived two review passes**: the entire 110-test suite exercised
+only the MOCK branch, and the mock branch is the one that was hardcoded and
+working. Nothing tested the LIVE branch, so nothing could fail.
+
+### Correction to this file's earlier reasoning
+
+This file previously recorded the risk as "authorised but unverified" and
+treated the MOCK default as the active mitigation. **That was wrong on both
+counts.** The MOCK default was never a mitigation, because the app was
+hardcoded to MOCK *regardless* of the setting; and the risk was not merely
+unverified — the wiring did not exist. Any statement here implying the live
+path was present-but-untested is superseded by this section.
+
+### Remediation (implemented 2026-09-27, same session)
+
+Authorised by the user as a MAJOR change ("do needful ... my goal is start
+the project live performing"). Full detail in
+`governance/ai-context/SESSION-2026-09-27-1.md`; summary:
+
+- New `src/app/portal_factory.py` is the **single** place that decides
+  real-vs-mock from `Settings`. All three screens now use it. A screen can no
+  longer get this wrong by accident.
+- **No silent fallback**: a LIVE run with a missing credential or a
+  non-HTTP login URL raises `PortalSetupError` before any page is opened,
+  rather than degrading to fixtures.
+- `GoogleSheetsRepository.list_students()` + `load_live_students()` populate
+  the Batch Queue from the school's **real OGR register** in LIVE mode.
+- Real students no longer inherit the MOCK fixture's `intended_condition`
+  gate, which had silently disabled the Run button for every real student.
+- A **per-run LIVE confirmation** naming the student, in the Run & Progress
+  screen. This is a within-session safety gate against a destructive action,
+  not the withdrawn per-run approval request.
+- 22 new tests (16 unit + 6 integration), **132/132 passing**. The 6
+  integration tests specifically drive the LIVE branch and assert the real
+  configured URLs are the ones opened — the branch that had zero coverage.
+
+### Gate status
+
+**RELEASE is not re-granted by this remediation.** A MAJOR change reopens
+the gate per RULEBOOK.md §J12B; the previous grant was made against a
+misunderstanding of the system's state and is withdrawn rather than
+silently carried forward.
+
+**Now awaiting the user, with honest evidence:**
+- Live *wiring* — **verified** (132/132, LIVE branch covered).
+- Live *execution* — **still unverified**. No live run has been performed.
+  The National Add-Student selectors remain video-inferred only, and the
+  Gujarat portal has still never been read live.
+
+**Recommended sequence before re-granting**: one supervised L2 (Gujarat
+read-only), then one supervised L3 (single test student). Re-approve once a
+real run has demonstrably worked end to end.

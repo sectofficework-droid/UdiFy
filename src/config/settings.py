@@ -8,6 +8,7 @@ DECISION" §1/§3/§6 in UDIFY-SPECIFICATIONS.md).
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 from dataclasses import dataclass
@@ -15,6 +16,10 @@ from enum import Enum
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from src.diagnostics.logging_setup import get_logger, log_event
+
+_logger = get_logger("config.settings")
 
 
 def _project_root() -> Path:
@@ -25,6 +30,14 @@ def _project_root() -> Path:
     mock_fixtures.py` already works around for fixture files), so it's
     the directory containing the built `.exe` instead — the natural
     place a user running the packaged app would put their own `.env`.
+
+    UdiFy is not packaged on this machine (Smart App Control blocks
+    unsigned .exe files, and the packaging targets were removed
+    2026-09-27), so the frozen branch is retained only for the
+    `_MEIPASS` fixture lookup's benefit and for anyone who does build
+    their own binary later — the marker-based install-root lookup that
+    the installer needed is deliberately gone, as there is no longer an
+    install root to find.
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -105,8 +118,25 @@ def load_settings(env_file: Path | None = None) -> Settings:
 
     Never logs or returns credential values in an exception message
     beyond the field *names* above — see require_live_credentials().
+
+    A *missing* .env is surfaced, never silent (2026-09-27). `load_dotenv`
+    returns False and logs nothing when the file is absent, so a fresh
+    install that shipped without one fell back to `UDIFY_ENVIRONMENT=MOCK`
+    with no indication to the operator — the worst possible failure mode
+    for this app, since a MOCK run looks like a real one. The installer
+    now always lays down a .env seeded from .env.example, and this warns
+    if it is somehow missing anyway.
     """
-    load_dotenv(dotenv_path=env_file or (PROJECT_ROOT / ".env"), override=False)
+    env_path = env_file or (PROJECT_ROOT / ".env")
+    if not env_path.exists():
+        log_event(
+            _logger,
+            logging.WARNING,
+            "no .env file found - starting in MOCK mode with no credentials. "
+            "Copy .env.example to .env and fill it in to enable real work.",
+            env_path=str(env_path),
+        )
+    load_dotenv(dotenv_path=env_path, override=False)
 
     raw_env = os.environ.get("UDIFY_ENVIRONMENT", "MOCK").strip().upper()
     try:
