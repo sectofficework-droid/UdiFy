@@ -58,3 +58,11 @@ Thumbs.db
 
 # Ad hoc debug/launch output (never a source of truth — see diagnostics/)
 *.log
+
+# Source screen recordings — the evidence base the master spec was derived
+# from, kept local only by explicit user decision 2026-09-27. Binary, large,
+# and derived from school operations; the conclusions are already recorded
+# in governance/planning/UDIFY-SPECIFICATIONS.md, so the videos themselves
+# are not needed to build, test, or audit the project.
+UDISE/
+*.mp4

@@ -100,9 +100,14 @@ that selectors were verified rather than guessed.
   `*.log`, build artifacts. Only `.env.example` (placeholders) was ever
   committed — **no real credential has ever entered git history**, re-verified
   2026-09-26.
-- **Untracked and unresolved**: `UDISE/` — the project's 9 source screen
-  recordings. Never gitignored, never committed, never discussed. User
-  decision still needed on whether these are tracked, ignored, or moved.
+- **`UDISE/` is now git-ignored** (2026-09-27, explicit user decision: keep
+  the source screen recordings out of git). `.gitignore` carries both a
+  `UDISE/` rule and a blanket `*.mp4`. Verified: the rule matches, the folder
+  no longer appears in `git status`, and **no `.mp4` was ever committed
+  anywhere in history** — so nothing needs purging. The recordings remain the
+  evidence base the master spec was derived from, but the conclusions are
+  recorded in `governance/planning/UDIFY-SPECIFICATIONS.md`, so the videos
+  themselves aren't needed to build, test, or audit the project.
 
 ## Assumptions on record (user may veto per RULEBOOK.md §C2.3)
 
@@ -122,7 +127,8 @@ that selectors were verified rather than guessed.
    2026-09-26.
 3. [x] Aadhaar-consent automation — manual only, confirmed.
 4. [x] Data retention + encryption at rest — answered 2026-09-26.
-5. [ ] **New**: disposition of the untracked `UDISE/` recordings.
+5. [x] Disposition of the untracked `UDISE/` recordings — **decided
+   2026-09-27**: keep them out of git (git-ignored, local only).
 6. [ ] **New**: the 3 unbuilt retry/recovery flows — build them, or continue
    to live under EX-2026-09-27-01.
 7. [ ] **New**: LIVE is authorised but unverified end-to-end. The cheapest
