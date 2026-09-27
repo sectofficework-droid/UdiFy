@@ -24,6 +24,7 @@ from src.engine.field_mapping import (
     udise_row_to_cts_details,
     udise_row_to_personal_tab_fields,
 )
+from src.engine.sheet_recovery import recover_sheet_write
 from src.portals.base import AutomationPausedForUser
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter, NewStudentInit
@@ -59,6 +60,7 @@ def write_and_verify(sheets: StudentSheetRepository, row_ref, column: str, value
 def run_udise_new_branch(
     gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository,
     conn: sqlite3.Connection, student: Student, *, run_id: str,
+    environment: str = "MOCK",
 ) -> str:
     """New UDISE Entry (spec §13-32, §163, §W). Returns the generated UID.
 
@@ -116,10 +118,38 @@ def run_udise_new_branch(
     gujarat.fill_tab(udise_row_to_personal_tab_fields(udise_row))
     gujarat.save_current_tab()
 
-    write_and_verify(sheets, student.udise_row, "UDISE No", uid)
-    sheets.set_row_color(student.udise_row, GREEN)
+    # NOTE: deliberately NOT calling verify_or_report() here. It would need a
+    # read-only probe that re-reads the saved tab, and no recording confirms
+    # what the Gujarat portal shows after a save — inventing that probe
+    # would mean inventing portal behaviour (RULEBOOK.md J14), and a probe
+    # that guesses could wrongly report the save as failed. The generic
+    # `verify_after_save` module is built and tested, ready to be wired the
+    # moment a post-save screen is actually observed.
+
+    # Past this point the portal work is DONE and only the spreadsheet
+    # needs to catch up. `recover_sheet_write` retries the sheet and is
+    # structurally incapable of re-issuing the one-shot "ADD NEW STUDENT"
+    # click above — re-running this branch instead would risk creating a
+    # second real student record on the government portal.
+    recover_sheet_write(
+        sheets, conn, student=student, run_id=run_id,
+        row_ref=student.udise_row,
+        cell_values={
+            "UDISE No": uid,
+            **({"UID": uid} if student.ogr_row is not None else {}),
+        },
+        row_color=GREEN,
+        environment=environment,
+        workflow="NEW_UDISE",
+    )
     if student.ogr_row is not None:
-        write_and_verify(sheets, student.ogr_row, "UID", uid)
+        recover_sheet_write(
+            sheets, conn, student=student, run_id=run_id,
+            row_ref=student.ogr_row,
+            cell_values={"UID": uid},
+            environment=environment,
+            workflow="NEW_UDISE",
+        )
 
     log_event(
         _logger, logging.INFO, "UDISE new-entry branch verified complete",
@@ -179,8 +209,16 @@ def run_udise_import_branch(
     gujarat.confirm_transfer_request()
 
     if student.udise_row is not None:
-        write_and_verify(sheets, student.udise_row, "REMARK", "REQUEST SENT")
-        sheets.set_row_color(student.udise_row, LIGHT_ORANGE)
+        # Transfer request already submitted on the portal; retry only the
+        # sheet if it fails, never re-submit the request.
+        recover_sheet_write(
+            sheets, conn, student=student,
+            row_ref=student.udise_row,
+            cell_values={"REMARK": "REQUEST SENT"},
+            row_color=LIGHT_ORANGE,
+            environment=environment,
+            workflow="UDISE_IMPORT",
+        )
 
     upsert_student(conn, student)
     create_request_case(
@@ -207,6 +245,7 @@ def run_udise_import_branch(
 def run_pen_new_branch(
     national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository,
     conn: sqlite3.Connection, student: Student, *, run_id: str, section: str = "A",
+    environment: str = "MOCK",
 ) -> str:
     """New PEN Entry (spec §34-53, §164, §Y). Returns "ND" on success —
     spec §54/§81/§128.3: ND + GREEN is a valid completed state.
@@ -285,8 +324,16 @@ def run_pen_new_branch(
     national.complete_profile_preview()
 
     pen_value = "ND"
-    write_and_verify(sheets, student.pen_row, "PEN", pen_value)
-    sheets.set_row_color(student.pen_row, GREEN)
+    # The portal work is done; only the sheet needs to catch up. Recovery
+    # here cannot re-issue the one-shot "Add New Student" click above.
+    recover_sheet_write(
+        sheets, conn, student=student, run_id=run_id,
+        row_ref=student.pen_row,
+        cell_values={"PEN": pen_value},
+        row_color=GREEN,
+        environment=environment,
+        workflow="NEW_PEN",
+    )
 
     log_event(
         _logger, logging.INFO, "PEN new-entry branch verified complete",
@@ -372,8 +419,15 @@ def run_pen_import_branch(
     hos = national.open_hos_details()
 
     if student.pen_row is not None:
-        write_and_verify(sheets, student.pen_row, "REMARK", "IMPORT PENDING")
-        sheets.set_row_color(student.pen_row, LIGHT_ORANGE)
+        # Import already completed on the portal; retry only the sheet.
+        recover_sheet_write(
+            sheets, conn, student=student,
+            row_ref=student.pen_row,
+            cell_values={"REMARK": "IMPORT PENDING"},
+            row_color=LIGHT_ORANGE,
+            environment=environment,
+            workflow="PEN_IMPORT",
+        )
 
     upsert_student(conn, student)
     create_request_case(

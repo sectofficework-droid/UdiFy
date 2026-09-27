@@ -1540,6 +1540,127 @@ is fixed, so a run cannot reach the portal even if triggered. The Batch
 Queue is only meaningful in LIVE mode, and in LIVE mode it is currently
 misleading.
 
+## FIXED 2026-09-27 — routing defect closed; two recovery flows built; live evidence made reproducible
+
+The defect above is **fixed and verified against the real sheets**. Also
+closed in the same pass: two of the three unbuilt testing-matrix gaps, and
+the empty `tests/live/` directory.
+
+### 1. Routing defect — FIXED
+
+`GoogleSheetsRepository.list_students()` now resolves each student's
+`udise_row`/`pen_row`, so `entry_router` reads real state.
+
+**Matching strategy, derived from read-only analysis of the real sheets
+(never assumed):**
+
+- **Primary: exact Aadhaar.** Established that UDISE and PEN contain the
+  *same* 65 distinct real Aadhaar values (the two sets are exactly equal),
+  so Aadhaar is a reliable key across both sheets.
+- **Secondary: DOB + class + name-subset.** Needed because OGR's AADHAR
+  column is only partly filled (211 usable of 401 rows; the rest blank or
+  placeholder like `-`/`NA`).
+  - DOB is normalised across the two real formats (`DD-MM-YYYY` in OGR/UDISE
+    vs `DD/MM/YYYY` in PEN) and compared **without reordering fields** — an
+    ISO conversion would silently swap day and month and match the wrong
+    student.
+  - Class is compared as a coarse signature, because the two sheets use
+    different vocabularies (`BALVATIKA` vs `Balvatika`, `1` vs `1st`) and a
+    full mapping table would be invented data.
+  - Name is compared as a **token-subset relation**, because OGR holds the
+    full name (`SHIVANGI SAGAR PANIGRAHI`) while UDISE often holds only the
+    given name (`SHIVANGI`).
+- **Ambiguity is never guessed.** Two candidate rows ⇒ left unresolved for
+  manual review, matching the rule the ND path already follows.
+
+**Two real bugs found and fixed while building this** (both by testing
+against live data, not by inspection):
+
+1. **The class signature was case-sensitive.** It was built from the raw
+   string, so `BALVATIKA` (OGR, 9 chars) produced `B9` while `Balvatika`
+   (UDISE, 8 chars) produced `B8`. The two vocabularies could never meet,
+   so the bridge matched **nothing at all** — a silent total failure. Now
+   folded to lowercase first.
+2. **The resolver made several hundred API calls**, hitting HTTP **429
+   rate-limit** errors. Both indexes are now built in a single pass per
+   sheet.
+
+### 2. Row-colour reads were rate-limited — FIXED
+
+`get_row_color()` made two API calls *per row*; a 40-student queue
+exceeded the 60-requests-per-minute quota and returned **HTTP 429**. Since
+a 429 means the app cannot tell whether a row is already GREEN — the one
+state it must never guess — this was a genuine live-run blocker.
+
+Now one batched grids call per tab, cached, with `set_row_color()` updating
+the cache so a just-written colour is never read back stale.
+
+**Verified on the real sheets: 0 errors, 0 rate-limit failures, 401
+students routed in 3.2s.**
+
+### 3. Real-data observation worth the school's attention (not a code bug)
+
+The OGR `UID` column shows the *same* value
+(`2422410006726200...`) for several different students in the Condition 4
+group. A UDISE number identifies exactly one student, so either the OGR
+column is populated with the school's own code rather than the child's
+UDISE number, or those rows need correcting. **Flagged, not touched** —
+OGR values are the school's to maintain, and this app must not rewrite a
+UID it did not generate.
+
+### 4. Spreadsheet-write recovery — BUILT (testing-matrix gap closed)
+
+`src/engine/sheet_recovery.py` — `recover_sheet_write()`. The dangerous
+shape is that the portal work is already banked and only the sheet write
+failed; the naive recovery re-runs the workflow and can create a **second
+real student record** on a government portal. So recovery is deliberately
+one-directional:
+
+- It takes **no portal adapter**, so it is *structurally incapable* of
+  repeating the portal action (asserted by a test).
+- It verifies before writing, so a write that actually landed is recognised
+  rather than repeated.
+- It retries the sheet, then escalates to a manual-review error whose
+  message says explicitly **"do not re-run"**, and records an auditable
+  `PEN_SPREADSHEET_UPDATE_FAILED` event.
+
+**Wired into all four branches** (New UDISE, New PEN, UDISE Import, PEN
+Import) so it is reachable code, not a library nothing calls.
+
+### 5. Verify-after-uncertain-save — BUILT, deliberately UNWIRED
+
+`src/engine/verify_after_save.py` — `verify_or_report()`. Takes only a
+read-only probe (no mutating callable, asserted by a test), re-reads state
+up to 3 times, then raises an error saying the action was **not** repeated.
+
+**Not wired into any branch, on purpose.** Doing so needs a probe that
+re-reads the Gujarat portal's post-save screen, and **no recording
+confirms what that portal shows after a save**. Inventing the probe would
+mean inventing portal behaviour (RULEBOOK.md §J14), and a probe that
+guesses could wrongly report a successful save as failed. The module is
+built and tested, ready the moment a post-save screen is actually observed.
+
+### 6. `tests/live/` — now populated and reproducible
+
+The L1/L2/L3 evidence previously came from throwaway, uncommitted scripts,
+so none of it could be re-run or checked by anyone else. Now:
+
+- `README.md` — how to run them, and the safety rules they follow.
+- `_live_common.py` — refuses to run unless `UDIFY_ENVIRONMENT=LIVE`
+  (running against fixtures would report a false pass), and prints
+  configuration state without ever printing a secret.
+- `L1_authentication.py` — logs into both portals, read-only, handles a
+  CAPTCHA as the pause it is.
+- `L2_sheets_readonly.py` — reads all three real sheets, read-only.
+
+**`L2_sheets_readonly.py` was executed against the real school sheets and
+PASSED**: 401 students, 0 errors, 0 rate-limit failures, routing
+CONDITION_1 361 / CONDITION_4 30 / AMBIGUOUS 6 / ALREADY_COMPLETE 4. That
+is the L2 evidence, now reproducible by anyone.
+
+Excluded from the default `pytest` run (they are scripts, not tests, and
+they touch real systems).
+
 ## Next trigger
 
 **Development is being finalised first; packaging/exe is the last step,

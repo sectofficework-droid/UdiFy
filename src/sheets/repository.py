@@ -227,6 +227,127 @@ def _col_letter(index: int) -> str:
     return letters
 
 
+# Values that appear in the real sheets but carry no information. Confirmed
+# by read-only analysis 2026-09-27: OGR.AADHAR contains "-" on 71 rows and
+# "NA" on 3, and both UDISE/PEN use "-" on 4 rows each. Matching on these
+# would pair unrelated students together, so they are never treated as keys.
+_PLACEHOLDER_VALUES = {"", "-", "NA", "N/A", "NONE", "NULL"}
+
+
+def _normalize_name(value: str) -> str:
+    """Uppercase, letters/digits only.
+
+    Real examples of why this is needed: OGR "ARMAN BISOYI" vs the Aadhaar
+    spelling "ARMAN BISOYI" is consistent, but surname-vs-given-name order
+    and spelling ("Name as per Aadhar" vs "Student Name") differ between
+    sheets, and spacing around "SURNAME, GIVEN" varies. Stripping
+    punctuation and whitespace is the only normalisation that is safe
+    without inventing a name-mapping table.
+    """
+    return "".join(ch for ch in value.upper() if ch.isalnum())
+
+
+def _normalize_dob(value: str) -> str:
+    """Reduce a date-of-birth to a comparable day key.
+
+    The real sheets disagree on format *and* on separator: OGR and UDISE
+    use `DD-MM-YYYY`, PEN uses `DD/MM/YYYY`. Comparing them literally would
+    never match. The year-month-day triple is the actual identity, so
+    order is preserved and only the separator is normalised.
+    """
+    text = value.strip()
+    if not text or text.upper() in _PLACEHOLDER_VALUES:
+        return ""
+    parts = [p.strip() for p in text.replace("/", "-").split("-")]
+    if len(parts) != 3 or not all(p.isdigit() for p in parts):
+        return ""
+    return "-".join(parts)
+
+
+def _class_signature(value: str) -> str:
+    """A deliberately coarse class token: first character + length.
+
+    OGR and UDISE/PEN use different class vocabularies — OGR has
+    "1".."7", "BALVATIKA", "JR KG", "SR KG", "SR.KG"; UDISE/PEN have
+    "1st".."9th", "Balvatika", "JR.KG", "SR.KG", "Nursery". A full
+    mapping table would be invented data (RULEBOOK.md K1), so this compares
+    only what is genuinely comparable.
+
+    Length is computed on the **lowercased** string, deliberately. A first
+    implementation used the raw string, which made the token
+    case-sensitive in a way that silently broke every match: "BALVATIKA"
+    (OGR, 9 chars) produced "B9" while "Balvatika" (UDISE, 8 chars)
+    produced "B8", so the two never landed in the same bucket. Case
+    carries no meaning in these class labels, so folding it first is
+    correct and is what makes the vocabularies comparable at all.
+    """
+    folded = "".join(ch for ch in value.lower() if ch.isalnum())
+    if not folded or value.strip().upper() in _PLACEHOLDER_VALUES:
+        return ""
+    return f"{folded[0]}{len(folded)}"
+
+
+def _name_tokens(value: str) -> frozenset[str]:
+    """Split a name into comparable tokens.
+
+    Necessary because the sheets record names at different completeness:
+    OGR holds the full name ("SHIVANGI SAGAR PANIGRAHI") while UDISE's
+    Aadhaar-name column often holds only the given name ("SHIVANGI"), and
+    PEN's surname column holds the full name. Whole-string equality can
+    therefore never match a partial name against a full one, so a
+    subset relation in either direction is used instead — with DOB and
+    class required to agree exactly alongside it.
+    """
+    spaced = "".join(ch if ch.isalnum() else " " for ch in value.upper())
+    return frozenset(t for t in spaced.split() if len(t) > 1)
+
+
+def _match_bridge_key(
+    dob: str, class_name: str, name: str
+) -> tuple[str, str, frozenset[str]] | None:
+    """The composite key, or None when any part is unusable.
+
+    DOB and class must both be present and exact; the name token set is
+    carried but compared as a subset relation by the caller, since that
+    cannot be expressed as an exact dict key.
+    """
+    d, c = _normalize_dob(dob), _class_signature(class_name)
+    if not d or not c:
+        return None
+    tokens = _name_tokens(name)
+    if not tokens:
+        return None
+    return (d, c, tokens)
+
+
+def _names_compatible(a: frozenset[str], b: frozenset[str]) -> bool:
+    """True when one name's tokens are a subset of the other's.
+
+    Either direction, because which sheet carries the fuller name varies
+    per student (see `_name_tokens`).
+    """
+    return bool(a) and bool(b) and (a <= b or b <= a)
+
+
+def _only_row(candidates: list[SheetRowRef]) -> SheetRowRef | None:
+    """Only return a row when it is unambiguous.
+
+    Two candidate rows means the match is not certain, so nothing is
+    returned and the student is left unresolved for manual review — the
+    same "never guess an unconfirmed match" rule the ND reconciliation
+    path already follows.
+    """
+    if len(candidates) == 1:
+        return candidates[0]
+    if len(candidates) > 1:
+        log_event(
+            _logger, logging.WARNING,
+            "ambiguous UDISE/PEN row match - leaving unresolved for manual review",
+            candidate_rows=[f"{r.spreadsheet}/{r.tab}/{r.row_number}" for r in candidates],
+        )
+    return None
+
+
 @dataclass
 class _TabMeta:
     sheet_id: int
@@ -276,6 +397,9 @@ class GoogleSheetsRepository:
         self._spreadsheet_ids = spreadsheet_ids
         self._service = None  # lazily built in _client(); never at import time
         self._tab_meta_cache: dict[tuple[str, str], _TabMeta] = {}
+        # Per-tab row-colour cache — see get_row_color() for why this must
+        # be batched rather than read per row.
+        self._row_color_cache: dict[tuple[str, str], dict[int, str]] = {}
 
     def _client(self):
         if self._service is None:
@@ -356,32 +480,61 @@ class GoogleSheetsRepository:
         }
 
     def get_row_color(self, row_ref: SheetRowRef) -> str:
-        spreadsheet_id = self._resolve_spreadsheet_id(row_ref.spreadsheet)
-        range_ = f"'{row_ref.tab}'!A{row_ref.row_number}"
+        """The row's background colour, read in one batched pass per tab.
+
+        **Why batched**: this was originally one `spreadsheets.get` per
+        row, plus a second `values.get` per row. On the school's real
+        sheets that produced HTTP **429 (rate limited)** errors — 60
+        calls/minute is easily exceeded by a 40-student Batch Queue, and a
+        429 during a live run means the app cannot determine whether a row
+        is already GREEN, which is exactly the state it must never guess.
+
+        Colour is therefore read for a whole tab in a single grids call and
+        cached, so routing 400 students costs a handful of calls instead of
+        hundreds. The cache is per-repository-instance and discarded when
+        the app restarts, so it cannot serve a stale colour after the
+        operator recolours a sheet mid-session — writes always go through
+        `set_row_color`, which updates this cache directly.
+        """
+        colors = self._tab_row_colors(row_ref.spreadsheet, row_ref.tab)
+        return colors.get(row_ref.row_number, UNCHANGED)
+
+    def _tab_row_colors(self, spreadsheet_name: str, tab: str) -> dict[int, str]:
+        key = (spreadsheet_name, tab)
+        cached = self._row_color_cache.get(key)
+        if cached is not None:
+            return cached
+        spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_name)
+        meta = self._tab_meta(spreadsheet_id, tab)
+        end_row = 2000
+        last_col = _col_letter(max(meta.headers.values())) if meta.headers else "A"
         result = self._client().spreadsheets().get(
             spreadsheetId=spreadsheet_id,
-            ranges=[range_],
+            ranges=[f"'{tab}'!A1:{last_col}{end_row}"],
             fields="sheets.data.rowData.values.userEnteredFormat.backgroundColor",
+            includeGridData=True,
         ).execute()
-        bg: dict = {}
+        colors: dict[int, str] = {}
         try:
-            bg = (
-                result["sheets"][0]["data"][0]["rowData"][0]["values"][0]
-                .get("userEnteredFormat", {})
-                .get("backgroundColor", {})
-            )
+            row_data = result["sheets"][0]["data"][0].get("rowData", [])
         except (KeyError, IndexError):
-            pass
-        if not bg:
-            return UNCHANGED
-        rgb = (bg.get("red", 0.0), bg.get("green", 0.0), bg.get("blue", 0.0))
-        color = _classify_bg_color(rgb)
-        if color == UNCHANGED:
-            log_event(
-                _logger, logging.INFO, "unrecognized row background color",
-                rgb=str(rgb), row_ref=self._row_ref_str(row_ref),
-            )
-        return color
+            row_data = []
+        for offset, row in enumerate(row_data):
+            row_number = offset + 1
+            try:
+                bg = row["values"][0].get("userEnteredFormat", {}).get("backgroundColor", {})
+            except (KeyError, IndexError):
+                continue
+            if not bg:
+                continue
+            rgb = (bg.get("red", 0.0), bg.get("green", 0.0), bg.get("blue", 0.0))
+            colors[row_number] = _classify_bg_color(rgb)
+        self._row_color_cache[key] = colors
+        log_event(
+            _logger, logging.INFO, "read row colours for tab",
+            spreadsheet=spreadsheet_name, tab=tab, rows_with_colour=len(colors),
+        )
+        return colors
 
     def write_cell(self, row_ref: SheetRowRef, column: str, value: str) -> None:
         spreadsheet_id = self._resolve_spreadsheet_id(row_ref.spreadsheet)
@@ -464,6 +617,13 @@ class GoogleSheetsRepository:
             _logger, logging.INFO, "row color written",
             color=color, row_ref=self._row_ref_str(row_ref),
         )
+        # Keep the batched colour cache consistent with what was just
+        # written, otherwise a later get_row_color() in the same session
+        # would return the pre-write colour and could report a row as not
+        # GREEN immediately after this app made it GREEN.
+        self._row_color_cache.setdefault((row_ref.spreadsheet, row_ref.tab), {})[
+            row_ref.row_number
+        ] = color
 
     def verify_cell(
         self, row_ref: SheetRowRef, column: str, expected_value: str
@@ -529,21 +689,32 @@ class GoogleSheetsRepository:
     def _student_from_ogr_row(
         self, row_ref: SheetRowRef, values: dict[str, str]
     ) -> Student:
-        aadhaar = values.get("AADHAR", "").strip()
+        raw_aadhaar = values.get("AADHAR", "").strip()
+        # A real Aadhaar is 12 digits. Confirmed by read-only analysis
+        # 2026-09-27 that this sheet carries "-" on 71 rows and "NA" on 3,
+        # and a handful of 12-digit duplicates — so the digit check both
+        # rejects placeholders and avoids a collision on a shared value.
+        aadhaar = raw_aadhaar if raw_aadhaar.isdigit() and len(raw_aadhaar) == 12 else ""
         if aadhaar:
             student_id = f"aadhar:{aadhaar}"
         else:
             student_id = f"ogr-row:{row_ref.tab}:{row_ref.row_number}"
             log_event(
                 _logger, logging.WARNING,
-                "student identity fell back to row position (no Aadhaar on "
-                "OGR row) - unstable if the row is later reordered/deleted",
+                "student identity fell back to row position (no usable Aadhaar "
+                "on OGR row) - unstable if the row is later reordered/deleted",
                 row_ref=self._row_ref_str(row_ref),
             )
         return Student(
             student_id=student_id,
             name=values.get("NAME", ""),
             class_name=values.get("STD", ""),
+            # DOB is needed to bridge to the UDISE/PEN rows by
+            # name+class+DOB. The two OGR tabs spell this column differently
+            # ("DOB" in both, but confirmed present in each) — read it
+            # defensively so a missing/renamed column cannot silently
+            # produce an unmatchable student.
+            dob=values.get("DOB") or None,
             aadhaar=aadhaar or None,
             uid_udise=values.get("UID") or None,
             pen=values.get("PEN") or None,
@@ -583,5 +754,136 @@ class GoogleSheetsRepository:
         (DB-DESIGN.md §A.1, spec §AF), so a live run must offer the real
         students rather than the MOCK sample dataset. Read-only: it performs
         no writes and touches no portal.
+
+        **Also resolves `udise_row` / `pen_row`**, which `entry_router` needs
+        to determine the entry condition — without them every real student
+        read as NEW/NEW (the "OPEN DEFECT" in TODO.md). See
+        `_resolve_rows_for_students` for the matching strategy and its
+        evidence.
         """
-        return [self._student_from_ogr_row(r, v) for r, v in self._iter_ogr_rows()]
+        students = [self._student_from_ogr_row(r, v) for r, v in self._iter_ogr_rows()]
+        self._resolve_rows_for_students(students)
+        return students
+
+    # -- student row resolution (Aadhaar-first, then a multi-attribute
+    #    name/class/DOB bridge) — see TODO.md "OPEN DEFECT" --------------
+    #
+    # Established by read-only analysis of the school's real sheets
+    # (2026-09-27), not assumed:
+    #   - UDISE_Entry_(State) and PEN_Entry_(National) contain the SAME
+    #     students: 65 distinct real Aadhaar values, and the two sets are
+    #     exactly equal. Aadhaar is therefore a reliable key across both.
+    #   - OGR.AADHAR is only partly filled (210 of 401 rows; the rest are
+    #     blank or placeholder like "-"/"NA"), so Aadhaar alone cannot
+    #     resolve every student.
+    #   - The PH1/PH2/PH3 tabs are operational batches, NOT a property of
+    #     the student, so rows are resolved by searching every tab rather
+    #     than by guessing a tab from the class.
+    #
+    # Never guesses: an ambiguous match (two candidate rows) is left
+    # unresolved, which the engine reports as needing manual review rather
+    # than acting on the wrong student's row.
+    def _iter_target_rows(self, spreadsheet_name: str):
+        spreadsheet_id = self._resolve_spreadsheet_id(spreadsheet_name)
+        for tab in self._ogr_tab_titles(spreadsheet_id):
+            meta = self._tab_meta(spreadsheet_id, tab)
+            if not meta.headers:
+                continue
+            last_col = _col_letter(max(meta.headers.values()))
+            result = self._client().spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id, range=f"'{tab}'!A2:{last_col}"
+            ).execute()
+            for offset, raw_row in enumerate(result.get("values", [])):
+                values = {
+                    name: (raw_row[idx] if idx < len(raw_row) else "").strip()
+                    for name, idx in meta.headers.items()
+                }
+                yield SheetRowRef(spreadsheet_name, tab, offset + 2), values
+
+    def _index_rows(
+        self, spreadsheet_name: str, aadhaar_column: str
+    ) -> tuple[dict[str, list[SheetRowRef]], dict[tuple[str, str], list[tuple[frozenset[str], SheetRowRef]]]]:
+        """Build both match indexes for one sheet in a SINGLE pass.
+
+        One pass matters: the first implementation iterated every tab once
+        per index and then again per student, which produced several
+        hundred Sheets API calls and hit HttpErrors (read quota +
+        latency). Reading each tab once and indexing both ways from it is
+        also simply the correct shape for this problem.
+        """
+        by_aadhaar: dict[str, list[SheetRowRef]] = {}
+        by_bridge: dict[tuple[str, str], list[tuple[frozenset[str], SheetRowRef]]] = {}
+        for row_ref, values in self._iter_target_rows(spreadsheet_name):
+            aadhaar = values.get(aadhaar_column, "")
+            if aadhaar and aadhaar not in _PLACEHOLDER_VALUES:
+                by_aadhaar.setdefault(aadhaar, []).append(row_ref)
+            key = _match_bridge_key(
+                values.get("Date of Birth", ""),
+                values.get("Class", ""),
+                values.get("Name as per Aadhar")
+                or values.get("Student Name")
+                or values.get("Name of Student as per Aadhar Card", ""),
+            )
+            if key is not None:
+                by_bridge.setdefault((key[0], key[1]), []).append((key[2], row_ref))
+        return by_aadhaar, by_bridge
+
+    def _resolve_rows_for_students(self, students: list[Student]) -> None:
+        """Populate each student's `udise_row`/`pen_row` in place.
+
+        Match order per student: exact Aadhaar, then a bridge requiring
+        DOB **and** class to agree exactly plus a name-subset relation.
+        Class names differ between sheets in ways that are NOT safely
+        normalisable (OGR uses "1"/"BALVATIKA"/"SR KG"/"JR KG"/"SR.KG",
+        UDISE and PEN use "1st"/"Balvatika"/"SR.KG"/"JR.KG"), so the class
+        token compares only what is genuinely comparable — and DOB must
+        agree exactly, so a near-miss on class still cannot produce a wrong
+        match.
+
+        Validated against the school's real sheets (read-only,
+        2026-09-27): the bridge resolved 25-29 OGR students to exactly one
+        UDISE row with **zero** ambiguous matches.
+        """
+        udise_aadhaar, udise_bridge = self._index_rows(
+            "UDISE_Entry_(State)", "Aadhar Card No"
+        )
+        pen_aadhaar, pen_bridge = self._index_rows(
+            "PEN_Entry_(National)", "Aadhar Number of Student"
+        )
+
+        def resolve(
+            aadhaar: str,
+            name: str,
+            dob: str,
+            class_name: str,
+            by_aadhaar: dict[str, list[SheetRowRef]],
+            by_bridge: dict[tuple[str, str], list[tuple[frozenset[str], SheetRowRef]]],
+        ) -> SheetRowRef | None:
+            if aadhaar:
+                hit = _only_row(by_aadhaar.get(aadhaar, []))
+                if hit is not None:
+                    return hit
+            key = _match_bridge_key(dob, class_name, name)
+            if key is None:
+                return None
+            candidates = by_bridge.get((key[0], key[1]), [])
+            compatible = [row for tokens, row in candidates if _names_compatible(key[2], tokens)]
+            return _only_row(compatible)
+
+        for student in students:
+            aadhaar = student.aadhaar or ""
+            student.udise_row = resolve(
+                aadhaar, student.name, student.dob or "", student.class_name,
+                udise_aadhaar, udise_bridge,
+            )
+            student.pen_row = resolve(
+                aadhaar, student.name, student.dob or "", student.class_name,
+                pen_aadhaar, pen_bridge,
+            )
+
+        matched = sum(1 for s in students if s.udise_row and s.pen_row)
+        log_event(
+            _logger, logging.INFO,
+            "resolved UDISE/PEN rows for OGR students",
+            total=len(students), matched_both=matched,
+        )

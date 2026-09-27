@@ -34,16 +34,32 @@
   release ladder is not re-run per change.
 - **Approvals given**: git init; secrets approach; stack lock-in; plan;
   design; UI; **"code it"**; **"test it"**; **"approve release"**.
-- **🔴 OPEN DEFECT (found 2026-09-27 review, highest priority): real students
-  all misroute to Condition 1.** `list_students()` sets only `ogr_row`, never
-  `udise_row`/`pen_row`, and `entry_router` decides the condition from those
-  — so all ~400 real students read as NEW/NEW. **Fails safely, not
-  dangerous:** `run_udise_new_branch()` raises `StudentIdentityError` before
-  any portal action, so nothing is submitted. But the LIVE Batch Queue is
-  wrong for every student. **Interim: keep `UDIFY_ENVIRONMENT=MOCK` until
-  fixed.** Full detail + fix direction: TODO.md's "OPEN DEFECT".
-- **Tests**: **132/132 passing** (`pytest -q`, 137s) — verified 2026-09-27
-  after the live-wiring remediation.
+- **✅ The routing defect is FIXED (2026-09-27).** `list_students()` now
+  resolves each student's `udise_row`/`pen_row` by Aadhaar first, then a
+  DOB + class + name-subset bridge (needed because OGR's AADHAR column is
+  only 211/401 filled). Ambiguity is never guessed. **Verified against the
+  real sheets: 401 students routed in 3.2s, 0 errors.** Full rationale and
+  the two bugs found while building it: TODO.md's "FIXED 2026-09-27".
+- **✅ Row-colour reads no longer rate-limit.** They were two API calls per
+  row and returned **HTTP 429** on the real sheets — meaning the app could
+  not tell whether a row was already GREEN, the one state it must never
+  guess. Now one batched call per tab, cached, and updated on write.
+- **✅ Spreadsheet-write recovery built and wired into all 4 branches**
+  (`src/engine/sheet_recovery.py`): retries the sheet, structurally cannot
+  repeat the portal action, escalates with an explicit "do not re-run".
+- **✅ `tests/live/` populated**: `L1_authentication.py` and
+  `L2_sheets_readonly.py` plus a README. **L2 was executed against the real
+  school sheets and PASSED** — that evidence is now reproducible instead of
+  living in a deleted throwaway script.
+- **⚠️ Still unverified: live portal EXECUTION.** No run has been driven
+  against a real portal. `verify_after_save.py` is built and tested but
+  deliberately **unwired** — confirming the Gujarat post-save screen would
+  require inventing portal behaviour no recording shows.
+- **👁️ For the school:** the OGR `UID` column shows the same value for
+  several different students. Flagged, not touched — the app must not
+  rewrite a UID it did not generate.
+- **Tests**: **167/167 passing** (`pytest -q`, 137s) — verified 2026-09-27
+  after the routing fix and both recovery modules.
 - **Git**: local `master` was level with `origin/master` at `455c91c`; the
   live-wiring work is **staged, not committed** (see below).
 
@@ -193,14 +209,17 @@ removal are committed as `4fd7c97`.
 
 ## Next trigger
 
-**RELEASE gate is REOPENED** (2026-09-27) — the live path was not wired and
-the previous grant is withdrawn. The wiring is now built and tested; what
-remains is **evidence that a real run works**.
+**RELEASE gate is REOPENED** (2026-09-27) - the live path was not wired and
+the previous grant is withdrawn. The wiring is now built and tested, and the
+**L2 spreadsheet evidence has been produced and is reproducible**. What
+remains is evidence that a real **portal** run works end to end.
 
 **Recommended order, cheapest first:**
-1. **L2 — Gujarat portal, read-only.** Never attempted; only its login has
-   ever been live-checked. Retires the largest untested surface.
-2. **L3 — one supervised test student.** Verifies the rebuilt Add Student
+1. **L2 portal half - Gujarat, read-only.** The *Sheets* half of L2 is
+   DONE and passing (`tests/live/L2_sheets_readonly.py`, 401 students, 0
+   errors). The *portal* half - a read-only pass over the Gujarat portal -
+   has still never been run.
+2. **L3 - one supervised test student.** Verifies the rebuilt Add Student
    navigation and identity-confirm modal against the real DOM. A
    per-run confirmation dialog now guards this in the GUI.
 
