@@ -6,6 +6,10 @@
   <button id="go">Go</button>
   <a class="btn" href="#x">Cancel</a>
   <button id="signin">Sign In</button>
+  <!-- Real Gujarat portal case (2026-09-28): a genuinely benign control
+       that is still an HTML type="submit" button. Must stay clickable —
+       type="submit" is not, by itself, a commit signal. -->
+  <button type="submit" id="benignSubmit">Log In</button>
 
   <h2>Committing controls (must be blocked)</h2>
   <button id="save">SAVE STUDENT</button>

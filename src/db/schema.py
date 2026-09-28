@@ -46,7 +46,7 @@ _SCHEMA_STATEMENTS: list[str] = [
         run_id TEXT PRIMARY KEY,
         student_id TEXT NOT NULL REFERENCES students(student_id),
         condition TEXT NOT NULL,
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         current_state TEXT NOT NULL,
         checkpoint_json TEXT,
         started_at TEXT NOT NULL,
@@ -86,7 +86,7 @@ _SCHEMA_STATEMENTS: list[str] = [
         attempt_number INTEGER,
         authorized_by TEXT,
         performed_by TEXT NOT NULL CHECK (performed_by IN ('AUTOMATION', 'MANUAL')),
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         occurred_at TEXT NOT NULL,
         created_at TEXT NOT NULL,
         metadata_json TEXT,
@@ -107,7 +107,7 @@ _SCHEMA_STATEMENTS: list[str] = [
     CREATE TABLE IF NOT EXISTS portal_sessions (
         session_id TEXT PRIMARY KEY,
         portal TEXT NOT NULL CHECK (portal IN ('GUJARAT_UDISE', 'NATIONAL_UDISE')),
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         status TEXT NOT NULL,
         started_at TEXT NOT NULL,
         last_active_at TEXT NOT NULL,
@@ -143,7 +143,7 @@ _SCHEMA_STATEMENTS: list[str] = [
         error_message TEXT,
         screenshot_path TEXT,
         retry_allowed INTEGER NOT NULL CHECK (retry_allowed IN (0, 1)),
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         occurred_at TEXT NOT NULL
     )
     """,
@@ -158,7 +158,7 @@ _SCHEMA_STATEMENTS: list[str] = [
         classification TEXT NOT NULL CHECK (
             classification IN ('STILL_PENDING', 'STATUS_CHANGED', 'UNKNOWN_PORTAL_STATUS')
         ),
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         checked_at TEXT NOT NULL,
         performed_by TEXT NOT NULL CHECK (performed_by IN ('AUTOMATION', 'MANUAL'))
     )
@@ -186,7 +186,7 @@ _SCHEMA_STATEMENTS: list[str] = [
         hos_contact TEXT,
         raw_portal_status TEXT,
         normalized_status TEXT,
-        environment TEXT NOT NULL CHECK (environment IN ('MOCK', 'LIVE')),
+        environment TEXT NOT NULL CHECK (environment IN ('LIVE')),
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
     )

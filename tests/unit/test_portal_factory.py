@@ -1,12 +1,11 @@
-"""Tests for the environment-aware portal setup and live student discovery.
+"""Tests for portal setup and live student discovery.
 
 The defect these lock down (found in review 2026-09-27): the GUI
-hardcoded the MOCK fixture URLs and `environment="MOCK"` while
-`AppContext` built a REAL `GoogleSheetsRepository` under
-`UDIFY_ENVIRONMENT=LIVE` — so a live-configured app drove mock pages and
-wrote mock results into the school's real spreadsheets. These tests assert
-the decision is made from Settings, in one place, with no silent
-mock-fallback when LIVE is misconfigured.
+hardcoded local mock-page URLs and `environment="MOCK"` while
+`AppContext` built a REAL `GoogleSheetsRepository` — so a live-configured
+app drove mock pages and wrote mock results into the school's real
+spreadsheets. These tests assert portal setup is built from Settings, in
+one place, with no silent fallback when it's misconfigured.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ import pytest
 from src.app.app_context import DemoStudentEntry, load_live_students
 from src.app.portal_factory import (
     LIVE_TIMEOUT_MS,
-    MOCK_TIMEOUT_MS,
     PortalSetupError,
     _validate_login_url,
 )
@@ -60,31 +58,22 @@ def _settings(environment: Environment, **overrides) -> Settings:
     return replace(base, **overrides) if overrides else base
 
 
-# ---------------- environment drives the decision ----------------
+# ---------------- environment ----------------
 
 
 def test_live_environment_is_detected_as_live():
     assert _settings(Environment.LIVE).environment is Environment.LIVE
 
 
-def test_mock_environment_is_detected_as_mock():
-    assert _settings(Environment.MOCK).environment is Environment.MOCK
+# ---------------- no silent fallback when misconfigured ----------------
 
 
-def test_live_and_mock_use_different_timeouts():
-    # Real portals are slow and network-dependent; fixtures are local.
-    assert LIVE_TIMEOUT_MS > MOCK_TIMEOUT_MS
+def test_missing_login_url_in_live_raises_rather_than_proceeding():
+    """The core safety property: a misconfigured run must fail loudly.
 
-
-# ---------------- no silent mock fallback in LIVE ----------------
-
-
-def test_missing_login_url_in_live_raises_rather_than_using_fixtures():
-    """The core safety property: a misconfigured LIVE run must fail loudly.
-
-    Falling back to the mock fixtures here would reproduce exactly the bug
-    this module exists to fix — a run that looks successful while touching
-    nothing real, or (worse) writing mock results to real spreadsheets.
+    Proceeding here would reproduce exactly the bug this module exists to
+    fix — a run that looks successful while touching nothing real, or
+    (worse) writing invalid results to real spreadsheets.
     """
     gujarat = replace(_settings(Environment.LIVE).gujarat_portal, login_url=None)
     from src.app.portal_factory import _require
@@ -92,7 +81,6 @@ def test_missing_login_url_in_live_raises_rather_than_using_fixtures():
     with pytest.raises(PortalSetupError) as exc:
         _require(gujarat.login_url, name="GUJARAT_UDISE_LOGIN_URL", portal="Gujarat UDISE")
     assert "GUJARAT_UDISE_LOGIN_URL" in str(exc.value)
-    assert "mock fixtures" in str(exc.value)
 
 
 @pytest.mark.parametrize("value", ["", "   ", None])
@@ -158,8 +146,9 @@ def test_live_student_entries_are_runnable_not_nd_only():
     """The Run button must be enabled for real students.
 
     Regression guard: the Run/Start buttons used to be gated on
-    `intended_condition`, which is a MOCK-fixture property. Real students
-    always carry None, so that gate silently disabled every real student.
+    `intended_condition`, which real students never carry a value for.
+    Real students always carry None, so that gate silently disabled every
+    real student.
     """
     entries = load_live_students(
         _StubSheets([Student(student_id="a", name="N", class_name="LKG/KG1/PP2")])
@@ -181,8 +170,8 @@ def test_empty_ogr_register_yields_no_entries():
     assert load_live_students(_StubSheets([])) == []
 
 
-def test_demo_student_entry_shape_is_unchanged_for_mock_mode():
-    """The MOCK demo dataset's contract is load-bearing for existing tests."""
+def test_demo_student_entry_shape_is_stable():
+    """DemoStudentEntry's contract is load-bearing for existing tests."""
     entry = DemoStudentEntry(
         student=Student(student_id="x", name="N", class_name="C"),
         intended_condition=1,

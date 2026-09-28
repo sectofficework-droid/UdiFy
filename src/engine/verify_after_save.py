@@ -56,7 +56,7 @@ def verify_or_report(
     student: Student,
     action_description: str,
     probe: Callable[[], bool],
-    environment: str = "MOCK",
+    environment: str = "LIVE",
     workflow: str = "UNKNOWN",
     case_status: CaseStatus = CaseStatus.ACTION_REQUIRED,
     run_id: str = "",

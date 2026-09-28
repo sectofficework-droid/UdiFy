@@ -19,7 +19,6 @@ from PySide6.QtWidgets import (
 
 from src.app.app_context import AppContext
 from src.app.widgets import StatTile, condition_chip, screen_header
-from src.config.settings import Environment
 
 
 class DashboardScreen(QWidget):
@@ -32,9 +31,8 @@ class DashboardScreen(QWidget):
         layout.addWidget(
             screen_header(
                 "Batch Queue",
-                "MOCK sample data — illustrative students, not real government "
-                "records. Real batches come from the configured Google Sheets "
-                "once Live Verification is complete.",
+                "Real students loaded live from the school's Google Sheets "
+                "OGR register.",
             )
         )
 
@@ -68,7 +66,6 @@ class DashboardScreen(QWidget):
 
     def _populate(self) -> None:
         entries = self.ctx.demo_students
-        live = self.ctx.settings.environment is Environment.LIVE
         self.stat_total.set_value(str(len(entries)))
         self.stat_ready.set_value(str(sum(1 for e in entries if e.intended_condition)))
         self.stat_pending.set_value(str(sum(1 for e in entries if e.intended_condition is None)))
@@ -82,13 +79,11 @@ class DashboardScreen(QWidget):
             # than showing a fixture-only guess.
             if entry.intended_condition:
                 self.table.setCellWidget(row, 2, condition_chip(entry.intended_condition))
-            elif live:
-                self.table.setItem(row, 2, QTableWidgetItem("derived at run time"))
             else:
-                self.table.setItem(row, 2, QTableWidgetItem("ND reconciliation"))
+                self.table.setItem(row, 2, QTableWidgetItem("derived at run time"))
             self.table.setItem(row, 3, QTableWidgetItem(entry.note))
 
-            run_btn = QPushButton("Run" if (entry.intended_condition or live) else "Reconcile")
+            run_btn = QPushButton("Run")
             run_btn.setObjectName("Secondary")
             run_btn.clicked.connect(
                 lambda _checked, sid=entry.student.student_id: self.on_run_requested(sid)

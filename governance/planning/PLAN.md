@@ -130,10 +130,11 @@ UdiFy/
 │
 ├── tests/
 │   ├── unit/                    pure logic, no browser
-│   ├── integration/             real Playwright against the fixture pages
-│   ├── fixtures/                the MOCK portal pages + generic helper fixture
-│   └── live/                    reserved for committed live-verification
-│                                scripts — currently EMPTY (see note below)
+│   ├── integration/             boundary-stubbed (no browser, no fixture
+│   │                            pages — mock mode removed 2026-09-28,
+│   │                            TODO.md)
+│   └── live/                    committed live-verification scripts —
+│                                L1-L3, explore_portal.py, README.md
 │
 ├── credentials/                 git-ignored — service-account JSON
 ├── diagnostics/                 git-ignored — runtime logs/screenshots
@@ -167,11 +168,12 @@ UdiFy/
   packaging target could produce a launchable binary, and installing one
   overwrote the working `pythonw.exe` launcher. Do not reintroduce without
   solving code signing first.
-- **`tests/live/` is empty** — the L1/L2/L3 live-verification evidence was
-  produced by throwaway scripts that were never committed, so it is not
-  reproducible. This is a real gap, not an oversight: the folder is
-  reserved and named so the next person knows where committed live
-  verification scripts belong.
+- **`tests/live/` is now populated** (was empty through 2026-09-27) — it
+  holds the committed, reproducible L1/L2/L3 live-verification scripts
+  plus `explore_portal.py` (the safe, non-submitting observation tool) and
+  its own README. This is now the primary way portal-facing behavior gets
+  verified, since mock-fixture-driven tests were removed 2026-09-28
+  (TODO.md).
 - **`udify.sqlite3` sits at ROOT**, not under a `data/` folder. A `data/`
   layout was briefly added to serve the (now-removed) installer and was
   reverted; `UDIFY_SQLITE_PATH` in `.env` can point it anywhere if that

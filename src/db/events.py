@@ -137,7 +137,7 @@ class PenCaseEvent:
     spreadsheet_status: str
     spreadsheet_color: str
     performed_by: Performer
-    environment: str  # "MOCK" | "LIVE" — see src.config.settings.Environment
+    environment: str  # always "LIVE" — see src.config.settings.Environment
     case_cycle_id: str | None = None
     pen: str | None = None
     uid_udise: str | None = None

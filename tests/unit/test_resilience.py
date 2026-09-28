@@ -31,7 +31,7 @@ def db_conn(tmp_path):
 
 def test_happy_path_returns_value_unchanged(db_conn):
     result = run_with_recovery(
-        lambda: 42, conn=db_conn, environment="MOCK", workflow="TEST",
+        lambda: 42, conn=db_conn, environment="LIVE", workflow="TEST",
     )
     assert result == 42
 
@@ -41,7 +41,7 @@ def test_automation_paused_for_user_passes_through_unchanged(db_conn):
         raise AutomationPausedForUser("CAPTCHA present", checkpoint="login")
 
     with pytest.raises(AutomationPausedForUser):
-        run_with_recovery(raise_paused, conn=db_conn, environment="MOCK", workflow="TEST")
+        run_with_recovery(raise_paused, conn=db_conn, environment="LIVE", workflow="TEST")
 
 
 def test_existing_portal_error_passes_through_unchanged(db_conn):
@@ -49,7 +49,7 @@ def test_existing_portal_error_passes_through_unchanged(db_conn):
         raise ConsequentialActionUnverifiedError("Expected text never appeared")
 
     with pytest.raises(ConsequentialActionUnverifiedError):
-        run_with_recovery(raise_unverified, conn=db_conn, environment="MOCK", workflow="TEST")
+        run_with_recovery(raise_unverified, conn=db_conn, environment="LIVE", workflow="TEST")
 
 
 def test_timeout_error_becomes_recoverable_automation_error_with_diagnostic(db_conn):
@@ -58,7 +58,7 @@ def test_timeout_error_becomes_recoverable_automation_error_with_diagnostic(db_c
 
     with pytest.raises(RecoverableAutomationError) as excinfo:
         run_with_recovery(
-            raise_timeout, conn=db_conn, environment="MOCK", workflow="TEST",
+            raise_timeout, conn=db_conn, environment="LIVE", workflow="TEST",
             student_id="s-1",
         )
 
@@ -74,7 +74,7 @@ def test_other_playwright_error_becomes_browser_or_network_failure(db_conn):
         raise PlaywrightError("Target page, context or browser has been closed")
 
     with pytest.raises(BrowserOrNetworkFailureError) as excinfo:
-        run_with_recovery(raise_generic, conn=db_conn, environment="MOCK", workflow="TEST")
+        run_with_recovery(raise_generic, conn=db_conn, environment="LIVE", workflow="TEST")
 
     diagnostic = get_diagnostic(db_conn, excinfo.value.diagnostic_id)
     assert diagnostic is not None

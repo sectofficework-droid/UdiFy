@@ -7,11 +7,11 @@ share across threads (spec-agnostic Python constraint, not a business
 rule).
 
 Which portals it drives is decided entirely by `portal_factory`, from the
-same `Settings` the rest of the app uses: MOCK drives the local fixture
-pages, LIVE drives the real government portals at their configured login
-URLs. Before 2026-09-27 this file hardcoded the fixture paths and passed
-`environment="MOCK"` as a literal, so a LIVE-configured app silently ran
-against mock pages while writing to the real spreadsheets.
+same `Settings` the rest of the app uses — the real government portals at
+their configured login URLs. Before 2026-09-27 this file hardcoded local
+mock-page paths and passed `environment="MOCK"` as a literal, so a
+LIVE-configured app silently ran against mock pages while writing to the
+real spreadsheets.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class RunWorker(QThread):
                 try:
                     self.progress.emit(
                         "Opening portals (visible — never headless): "
-                        f"{'REAL government portals' if environment == 'LIVE' else 'MOCK fixtures'}..."
+                        "REAL government portals..."
                     )
                     session, _ = open_portal_session(self.ctx.settings, browser)
 

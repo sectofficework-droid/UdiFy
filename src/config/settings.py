@@ -1,9 +1,9 @@
 """Application configuration.
 
 Loads .env (never committed — see .env.example) and exposes typed
-settings. Default environment is MOCK; LIVE requires every credential
-field to be present (spec: "CREDENTIALS, MOCKING AND LIVE VERIFICATION
-DECISION" §1/§3/§6 in UDIFY-SPECIFICATIONS.md).
+settings. The app runs LIVE-only — every credential field must be present
+(spec: "CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION" §1/§3/§6 in
+UDIFY-SPECIFICATIONS.md).
 """
 
 from __future__ import annotations
@@ -26,18 +26,17 @@ def _project_root() -> Path:
     """The directory `.env`/`credentials/`/the SQLite DB/diagnostics live
     next to. In development that's the repo root; a frozen PyInstaller
     build has no `src/` tree on disk to walk up from (`__file__` doesn't
-    point at a real path once bundled — the same problem `src/app/
-    mock_fixtures.py` already works around for fixture files), so it's
-    the directory containing the built `.exe` instead — the natural
-    place a user running the packaged app would put their own `.env`.
+    point at a real path once bundled — the general `sys._MEIPASS`
+    problem any frozen build hits for bundled data), so it's the
+    directory containing the built `.exe` instead — the natural place a
+    user running the packaged app would put their own `.env`.
 
     UdiFy is not packaged on this machine (Smart App Control blocks
     unsigned .exe files, and the packaging targets were removed
-    2026-09-27), so the frozen branch is retained only for the
-    `_MEIPASS` fixture lookup's benefit and for anyone who does build
-    their own binary later — the marker-based install-root lookup that
-    the installer needed is deliberately gone, as there is no longer an
-    install root to find.
+    2026-09-27), so the frozen branch is retained only for anyone who does
+    build their own binary later — the marker-based install-root lookup
+    that the installer needed is deliberately gone, as there is no longer
+    an install root to find.
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
@@ -48,7 +47,6 @@ PROJECT_ROOT = _project_root()
 
 
 class Environment(str, Enum):
-    MOCK = "MOCK"
     LIVE = "LIVE"
 
 
@@ -86,14 +84,12 @@ class Settings:
     sqlite_path: Path
 
     def require_live_credentials(self) -> None:
-        """Raise if LIVE mode is requested without every required credential.
+        """Raise if any required credential is missing.
 
-        Never silently falls back to MOCK behavior when LIVE was
-        explicitly requested — that would risk a mock result being
-        mistaken for a live one (spec decision §5).
+        The app has no non-LIVE mode to fall back to — an incomplete
+        configuration must fail loudly here rather than let a run start
+        against real government portals half-configured (spec decision §5).
         """
-        if self.environment is not Environment.LIVE:
-            return
         missing = []
         if not self.sheets.service_account_file:
             missing.append("GOOGLE_SERVICE_ACCOUNT_FILE")
@@ -107,7 +103,7 @@ class Settings:
             missing.append("NATIONAL_UDISE_PLUS_USERNAME/PASSWORD")
         if missing:
             raise RuntimeError(
-                "UDIFY_ENVIRONMENT=LIVE but required credentials are missing: "
+                "required credentials are missing: "
                 + ", ".join(missing)
                 + ". See .env.example."
             )
@@ -121,30 +117,24 @@ def load_settings(env_file: Path | None = None) -> Settings:
 
     A *missing* .env is surfaced, never silent (2026-09-27). `load_dotenv`
     returns False and logs nothing when the file is absent, so a fresh
-    install that shipped without one fell back to `UDIFY_ENVIRONMENT=MOCK`
-    with no indication to the operator — the worst possible failure mode
-    for this app, since a MOCK run looks like a real one. The installer
-    now always lays down a .env seeded from .env.example, and this warns
-    if it is somehow missing anyway.
+    install that shipped without one would otherwise start with no
+    credentials and no indication to the operator. The installer now
+    always lays down a .env seeded from .env.example, and this warns if
+    it is somehow missing anyway; `require_live_credentials()` below then
+    fails loudly rather than letting a run start half-configured.
     """
     env_path = env_file or (PROJECT_ROOT / ".env")
     if not env_path.exists():
         log_event(
             _logger,
             logging.WARNING,
-            "no .env file found - starting in MOCK mode with no credentials. "
+            "no .env file found - starting with no credentials. "
             "Copy .env.example to .env and fill it in to enable real work.",
             env_path=str(env_path),
         )
     load_dotenv(dotenv_path=env_path, override=False)
 
-    raw_env = os.environ.get("UDIFY_ENVIRONMENT", "MOCK").strip().upper()
-    try:
-        environment = Environment(raw_env)
-    except ValueError as exc:
-        raise ValueError(
-            f"UDIFY_ENVIRONMENT must be MOCK or LIVE, got {raw_env!r}"
-        ) from exc
+    environment = Environment.LIVE
 
     sheets = GoogleSheetsConfig(
         service_account_file=os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE") or None,

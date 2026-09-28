@@ -1,12 +1,11 @@
-"""Proves the LIVE branch of portal_factory is reachable and correct.
+"""Proves portal_factory opens the real configured portals, not a mock page.
 
-The MOCK branch is covered heavily by the existing integration suite, which
-is exactly why the hardcoded-fixture defect survived review: nothing
-exercised the LIVE branch. This drives the real code path with the browser
-and network stubbed at the outermost boundary only — the URL resolution,
-credential requirement, adapter construction and login call are all the
-app's real code (RULEBOOK.md J12C level 3: integration, not level 1
-inspection).
+Before 2026-09-27, every GUI screen hardcoded a local mock-page path — a
+defect that survived review because nothing exercised the real code path.
+This drives that real code path with the browser and network stubbed at
+the outermost boundary only — the URL resolution, credential requirement,
+adapter construction and login call are all the app's real code
+(RULEBOOK.md J12C level 3: integration, not level 1 inspection).
 
 No network call is made and no real credential is used.
 """
@@ -20,7 +19,6 @@ import pytest
 
 from src.app.portal_factory import (
     LIVE_TIMEOUT_MS,
-    MOCK_TIMEOUT_MS,
     PortalSession,
     PortalSetupError,
     open_portal_session,
@@ -109,7 +107,6 @@ def test_live_session_navigates_to_the_configured_real_urls(monkeypatch):
     session, owned = open_portal_session(_live_settings(), browser)
 
     assert owned is None, "a caller-supplied browser must not be claimed as owned"
-    assert session.is_live is True
     assert browser.visited == [
         "https://gujarat.example.invalid/login",
         "https://national.example.invalid/login",
@@ -119,21 +116,6 @@ def test_live_session_navigates_to_the_configured_real_urls(monkeypatch):
     assert session.national.timeout_ms == LIVE_TIMEOUT_MS
     assert isinstance(session.gujarat, GujaratUDISEPortalAdapter)
     assert isinstance(session.national, NationalUDISEPortalAdapter)
-
-
-def test_mock_session_navigates_to_the_fixtures(monkeypatch):
-    """The MOCK branch must still work — it is what the 126-test suite and
-    the operator's demo mode both depend on."""
-    browser = _FakeBrowser()
-    monkeypatch.setattr(GujaratUDISEPortalAdapter, "login", lambda *a, **k: None)
-    monkeypatch.setattr(NationalUDISEPortalAdapter, "login", lambda *a, **k: None)
-
-    settings = _live_settings()
-    session, _ = open_portal_session(replace(settings, environment=Environment.MOCK), browser)
-
-    assert session.is_live is False
-    assert all(url.startswith("file:///") for url in browser.visited)
-    assert session.gujarat.timeout_ms == MOCK_TIMEOUT_MS
 
 
 def test_live_login_receives_configured_credentials(monkeypatch):
@@ -187,7 +169,6 @@ def test_session_close_closes_both_pages():
     session = PortalSession(
         gujarat=GujaratUDISEPortalAdapter(_FakePage([])),
         national=NationalUDISEPortalAdapter(_FakePage([])),
-        is_live=True,
     )
     session.close()
     assert session.gujarat.page.closed is True

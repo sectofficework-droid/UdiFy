@@ -12,25 +12,18 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
-from src.config.settings import Environment, Settings, load_settings
+from src.config.settings import Settings, load_settings
 
 
 def require_live_settings() -> Settings:
-    """Load settings, refusing to continue unless LIVE is configured.
+    """Load settings, refusing to continue unless every credential is set.
 
-    Running any of these scripts in MOCK mode would report a false pass —
-    the fixtures would answer instead of the real portal — which is the
-    exact failure this project already made once.
+    `load_settings()` already raises via `require_live_credentials()` if
+    anything required is missing — these scripts always talk to the real
+    portals and spreadsheets, so an incomplete `.env` must fail loudly here
+    rather than let a script run against nothing.
     """
-    settings = load_settings()
-    if settings.environment is not Environment.LIVE:
-        raise SystemExit(
-            "These scripts verify the REAL portals and spreadsheets.\n"
-            "UDIFY_ENVIRONMENT is MOCK, so running now would test the local "
-            "fixtures and report a meaningless pass.\n"
-            "Set UDIY_ENVIRONMENT=LIVE in .env first."
-        )
-    return settings
+    return load_settings()
 
 
 def show_config_summary(settings: Settings) -> None:

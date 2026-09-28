@@ -35,7 +35,7 @@ def test_start_run_creates_an_incomplete_row(db_conn):
     student = _seed_student(db_conn)
     start_run(
         db_conn, run_id="r1", student_id=student.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     row = db_conn.execute("SELECT * FROM workflow_runs WHERE run_id = ?", ("r1",)).fetchone()
     assert row is not None
@@ -47,7 +47,7 @@ def test_patch_checkpoint_merges_rather_than_overwrites(db_conn):
     student = _seed_student(db_conn)
     start_run(
         db_conn, run_id="r2", student_id=student.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     patch_checkpoint(db_conn, run_id="r2", patch={"a": 1})
     patch_checkpoint(db_conn, run_id="r2", patch={"b": 2}, current_state="MID")
@@ -64,7 +64,7 @@ def test_complete_run_sets_completed_at(db_conn):
     student = _seed_student(db_conn)
     start_run(
         db_conn, run_id="r3", student_id=student.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     complete_run(db_conn, run_id="r3")
     row = db_conn.execute(
@@ -77,7 +77,7 @@ def test_find_incomplete_run_with_checkpoint_flag_ignores_completed_runs(db_conn
     student = _seed_student(db_conn)
     start_run(
         db_conn, run_id="r4", student_id=student.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     patch_checkpoint(db_conn, run_id="r4", patch={"udise_new_entered": True})
     complete_run(db_conn, run_id="r4")
@@ -92,7 +92,7 @@ def test_find_incomplete_run_with_checkpoint_flag_finds_a_matching_incomplete_ru
     student = _seed_student(db_conn)
     start_run(
         db_conn, run_id="r5", student_id=student.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     patch_checkpoint(db_conn, run_id="r5", patch={"pen_new_entered": True})
 
@@ -113,7 +113,7 @@ def test_find_incomplete_run_ignores_other_students(db_conn):
     _seed_student(db_conn, "s-wf-b")
     start_run(
         db_conn, run_id="r6", student_id=student_a.student_id, condition="TEST_COND",
-        environment="MOCK", current_state="STARTED",
+        environment="LIVE", current_state="STARTED",
     )
     patch_checkpoint(db_conn, run_id="r6", patch={"udise_new_entered": True})
 

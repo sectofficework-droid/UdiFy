@@ -40,7 +40,7 @@ def _base_event(**overrides) -> PenCaseEvent:
         spreadsheet_status="PENDING",
         spreadsheet_color="NONE",
         performed_by=Performer.AUTOMATION,
-        environment="MOCK",
+        environment="LIVE",
     )
     defaults.update(overrides)
     return PenCaseEvent(**defaults)
@@ -51,7 +51,7 @@ def test_append_and_read_back(conn: sqlite3.Connection):
     history = get_case_history(conn, "case-1")
     assert len(history) == 1
     assert history[0]["event_id"] == event_id
-    assert history[0]["environment"] == "MOCK"
+    assert history[0]["environment"] == "LIVE"
     assert history[0]["event_hash"] is not None
     assert history[0]["previous_event_hash"] is None
 

@@ -19,8 +19,8 @@ Safety rules every script here follows:
 
 - **Never print a credential.** Values are read from `Settings`, and only
   non-secret facts (host, whether a value is set) are ever displayed.
-- **Refuse to run in MOCK.** These scripts are meaningless without real
-  credentials, and silently testing a mock would produce a false pass.
+- **Refuse to run with incomplete credentials.** `require_live_settings()`
+  fails loudly rather than letting a script start half-configured.
 - **One deliberate session.** Do not add retry loops: repeated logins
   against a government portal can trip fraud detection and get the
   school's real account flagged or locked.

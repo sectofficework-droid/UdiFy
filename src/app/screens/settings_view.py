@@ -230,6 +230,5 @@ class SettingsScreen(QWidget):
         )
 
         self.status_label.setText(
-            "✓ Saved to .env — restart UdiFy for these changes to take effect. "
-            "Environment stays MOCK until UDIFY_ENVIRONMENT is changed separately."
+            "✓ Saved to .env — restart UdiFy for these changes to take effect."
         )

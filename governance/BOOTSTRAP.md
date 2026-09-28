@@ -3,8 +3,43 @@
 > Read this every session (RULEBOOK.md §0/§C.2 — ALWAYS). Curated snapshot,
 > not an archive — see RULEBOOK.md §D size-discipline rule.
 
-## Current state (as of 2026-09-27, later)
+## Current state (as of 2026-09-28)
 
+- **🔴 MOCK MODE REMOVED ENTIRELY (2026-09-28, user decision — MAJOR
+  change).** The user's explicit direction: clean the project to only the
+  live-working codebase, remove mock mode as a source of confusion, and
+  develop going forward by direct live-DOM analysis (`tests/live/
+  explore_portal.py`, `L1`-`L3`) rather than synthetic fixtures. Full scope
+  and the accepted coverage tradeoff (chosen knowingly, not discovered
+  after the fact): TODO.md's "Mock mode removed — LIVE-only from now on
+  (2026-09-28)".
+  - `Environment.MOCK` no longer exists; `Environment` has only `LIVE`.
+    `UDIFY_ENVIRONMENT` is no longer read — the app is unconditionally
+    LIVE, and `require_live_credentials()` always applies.
+  - Deleted: `src/app/mock_fixtures.py`, all three
+    `tests/fixtures/{gujarat_udise,udise_plus,generic}/*.html` mock portal
+    pages, and every mock-portal-fixture-driven test file (see TODO.md
+    entry for the full list — effectively the whole prior integration
+    suite except `test_live_portal_wiring.py`,
+    `test_sheet_write_recovery.py`, `test_verify_after_save.py`).
+  - `portal_factory.py`, `app_context.py` (no more `seed_demo_students`/
+    demo dataset — `demo_students` is always `load_live_students()`
+    against the real OGR), `run_worker.py`, and 4 GUI screens simplified
+    to their single remaining (LIVE) code path.
+  - `MockSheetsRepository` in `src/sheets/repository.py` is **kept**,
+    narrowed to an in-memory test double used only by unit tests — it is
+    never instantiated by the shipped app anymore. This is a repository-
+    pattern test fake, not "mock mode"; distinct from what was removed.
+  - **Tests: 191/191 passing** (down from 233 — the removed count is the
+    fixture-driven tests, not a quality regression). **Known gap, recorded
+    rather than silently dropped**: the deleted tests were the only
+    automated coverage for Condition1-4 engine logic, duplicate-request
+    protection, session-timeout/resume recovery, approval-batch,
+    release-request, ND-reconciliation, and adapter-DOM interaction
+    (gujarat/national adapters, generic portal helpers, UI-change
+    resilience). There is currently no fast automated regression check for
+    that business logic — verification of it now depends on live runs and
+    `tests/live/` DOM analysis.
 - **Phase**: **OPERATE**. The DISCOVERY→RELEASE ladder ran, but the
   **RELEASE gate is REOPENED** — see below.
 - **🔴 RELEASE REOPENED 2026-09-27.** A full project review found the live
@@ -24,7 +59,10 @@
   `intended_condition` gate silently disabled them); per-run LIVE
   confirmation dialog. **132/132 tests pass**, including 6 that specifically
   drive the LIVE branch — the branch that previously had zero coverage.
-- **`.env` is `UDIFY_ENVIRONMENT=LIVE`.**
+- **The app is unconditionally LIVE** (`UDIFY_ENVIRONMENT` is no longer
+  read — see the 2026-09-28 mock-removal entry above). The real `.env`
+  still has the old `UDIFY_ENVIRONMENT=LIVE` line; it's simply ignored now,
+  harmless to leave or remove.
 - **⚠️ Live wiring is verified; live *execution* is not.** No live run has
   ever been performed. The National Add-Student selectors are still
   video-inferred only, and the Gujarat portal has still never been read
@@ -58,8 +96,9 @@
 - **👁️ For the school:** the OGR `UID` column shows the same value for
   several different students. Flagged, not touched — the app must not
   rewrite a UID it did not generate.
-- **Tests**: **167/167 passing** (`pytest -q`, 137s) — verified 2026-09-27
-  after the routing fix and both recovery modules.
+- **Tests**: **191/191 passing** (`pytest -q`, ~3s) — verified 2026-09-28
+  after mock-mode removal (see the 2026-09-28 entry above for what changed
+  and the known coverage gap it left).
 - **Git**: local `master` was level with `origin/master` at `455c91c`; the
   live-wiring work is **staged, not committed** (see below).
 
@@ -91,32 +130,40 @@
   idea. Deciding this costs nothing now; finding out at the final build
   would. Full detail: TODO.md's "Packaging: deferred to the END of
   development".
-- The `sys.frozen` / `sys._MEIPASS` handling in `settings.py` and
-  `mock_fixtures.py` is **deliberately retained** so a future build needs no
-  rework.
+- The `sys.frozen` handling in `settings.py` is **deliberately retained**
+  so a future build needs no rework (`mock_fixtures.py`, which also had
+  this, was deleted 2026-09-28 along with mock mode — see TODO.md).
 
 ## Live Verification Gate — where it actually stands
 
-Mock-first through RELEASE. Live progress is **partial**, and the honest
-summary is: **read-only and login verified; nothing that writes has ever
-completed against a real portal.**
+Mock-first through RELEASE (mock mode itself removed 2026-09-28, see
+TODO.md). Live progress is **partial**, and the honest summary is:
+**read-only login now verified for BOTH portals; nothing that writes has
+ever completed against a real portal.**
 
 | Phase | State |
 | --- | --- |
 | L1 Authentication | **PASSED** — Google Sheets (read-only) + both portal logins. 6 real adapter bugs found and fixed live. |
 | L2 Sheets half | **DONE** (`e3e7cde`) — `GoogleSheetsRepository` real read/write built; no `NotImplementedError` left in `src/`. |
-| L2 Gujarat portal | **NOT ATTEMPTED** — only its login was ever live-checked. |
+| L2 Gujarat portal | **PASSED (read-only), 2026-09-28** — first-ever live authenticated read. Logged in as the real school (`24224100067-SATYAM STARS INTERNATIONAL SCHOOL` confirmed on-screen) via the new `tests/live/session_control.py` persistent-CDP tool; landed on `StudentEntryPageStdWise.aspx` ("Manage Students – Standard Wise Entry"), captured to `diagnostics/l3_observation/20260928-014613_gujarat_post_login_check.json`. Nothing beyond this one read-only screen has been explored yet. |
 | L3 controlled student | **NEVER COMPLETED** — attempt #1 failed and exposed the navigation gap below. |
 | L4 recovery | Not started. |
+
+**New tool built and proven live this session**: `tests/live/session_control.py` — a persistent, code-driven alternative to `explore_portal.py`'s human-typed REPL. One process launches the browser and holds it open (Chrome DevTools Protocol on `localhost:9345`); every action after that is a separate short-lived process that reconnects to the SAME already-open, already-logged-in page and performs one action, so a login survives across as many follow-up actions as needed. Two real bugs found and fixed building it (both verified against the actual live Gujarat portal, not fixtures):
+1. The DOM-level submit-blocker's "any `type=submit`/`type=image` attribute" rule disarmed the real portal's own "Go" and "LOG IN" buttons — both legitimately `type="submit"` in the real HTML, neither a commit action. Fixed by relying on button *text* alone (Save/Submit/Confirm/etc.); the type-attribute signal was removed from `explore_portal.py`'s `INJECT_BLOCKER` (shared by both tools). Regression test added (`benignSubmit` in `test_observe_safety.py`).
+2. The connector's cleanup (`pw.stop()` after `connect_over_cdp()`) was closing the actual page/tab on disconnect, even though the browser process stayed alive — reproduced live: right after a real CAPTCHA pause, the page vanished. Fixed by ending every connector command with `os._exit()` instead of a graceful Playwright shutdown, which skips the disconnect protocol messages that were reaching the shared browser.
 
 **The known live-verification gap**: the National UDISE+ New-PEN flow
 (`open_add_student()`, `fill_identity_fields()`,
 `read_identity_confirmation()`, `confirm_identity_details()`) was rebuilt
 from the project's own screen recordings and has **never run against the real
 DOM**. The precise cell-click fix in `open_add_student()` is likewise
-unverified. The Gujarat (state) portal has **never been read live at all** —
-only its login. This is the substance of EX-2026-09-27-01/02, and it is why
-LIVE authorisation does not mean the live path is verified.
+unverified. The Gujarat portal's login and its first post-login screen are
+now verified live (above), but everything past that screen — the actual
+UDISE New Entry form, its 5 profile tabs — remains unread. This is the
+substance of EX-2026-09-27-01/02, narrowed but not closed by today's
+progress; LIVE authorisation still does not mean the whole live path is
+verified.
 
 > **Account-safety instruction (still in force, narrowed).** The original
 > 2026-09-27 instruction — *do not resume live attempts without explicit
@@ -155,10 +202,17 @@ This file only records the facts most likely to be got wrong:
 
 ## Uncommitted work
 
-**None at the time of writing**, except the folder-structure
-reconciliation recorded above (`.gitignore` cache entries + PLAN.md /
-BOOTSTRAP.md documentation). The live-wiring remediation and the packaging
-removal are committed as `4fd7c97`.
+**The 2026-09-28 mock-mode removal is staged/modified, not committed** —
+per RULEBOOK.md §J9's "never commit unless explicitly asked": deleted mock
+fixture files + fixture-driven tests, edits across `src/config/settings.py`,
+`src/app/portal_factory.py`, `src/app/app_context.py`,
+`src/app/run_worker.py`, 5 GUI screens, `src/db/schema.py`,
+`src/db/events.py`, 3 engine modules, `src/sheets/repository.py`
+(docstrings only), `.env.example`, `tests/live/*`, and the remaining
+unit/integration test edits described in the entry above. Run `git status`
+/ `git diff --stat` for the exact file list before committing. Everything
+before this is already committed (level with the pre-2026-09-27
+folder-structure reconciliation).
 
 ## Git state
 

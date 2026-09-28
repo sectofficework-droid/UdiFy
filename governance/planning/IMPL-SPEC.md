@@ -29,8 +29,9 @@ so it applies before the per-module mapping:
   listed in the master spec's decision section 4 (14 Gujarat scenarios,
   32 National scenarios — session expiry, timeout, duplicate-request
   protection, and every documented success/pending state among them).
-- **`environment = MOCK | LIVE` is tracked as data, not assumed from
-  context.** Every `pen_case_events` row and workflow-run record carries
+- **`environment` is tracked as data, not assumed from context** (always
+  `LIVE` since mock mode was removed 2026-09-28 — TODO.md). Every
+  `pen_case_events` row and workflow-run record carries
   this field (DB-DESIGN.md §B.1/§B.4). A mock test result must never be
   capable of causing a real spreadsheet write or a claim of government
   success — `MOCK_SUCCESS` and `LIVE_VERIFIED_SUCCESS` are distinct,

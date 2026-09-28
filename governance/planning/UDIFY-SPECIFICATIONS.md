@@ -11760,12 +11760,26 @@ and Condition 4's full combination) remain honestly marked as such.
 
 # UDIFY — CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION
 
-> **Decision, 2026-09-25.** This section is an authoritative engineering-
-> process decision from the project owner, made at the CODING-gate
-> threshold (RULEBOOK.md §F). It governs *how* implementation proceeds,
-> not the business rules already established elsewhere in this document
-> — those are unchanged. It supersedes any implication elsewhere that
-> live credentials must be obtained before coding starts.
+> **🔴 SUPERSEDED 2026-09-28.** The mock-first *engineering-process*
+> decision below (2026-09-25) drove the initial build, but the user has
+> since explicitly reversed it: mock mode was removed from the codebase
+> entirely, and development now proceeds LIVE-only, verified by direct
+> live-DOM analysis (`tests/live/explore_portal.py`, `L1`-`L3`) instead of
+> mock fixtures. Full rationale, scope, and the accepted test-coverage
+> tradeoff: `governance/planning/TODO.md`'s "Mock mode removed — LIVE-only
+> from now on (2026-09-28)". The section below is kept verbatim as the
+> historical record of what was originally decided and why — it is no
+> longer how the project operates. Business rules elsewhere in this
+> document (routing, verification sequence, portal behavior) are
+> unaffected; only the mock-vs-live *engineering process* changed.
+
+> **Decision, 2026-09-25 (historical — see supersession notice above).**
+> This section is an authoritative engineering-process decision from the
+> project owner, made at the CODING-gate threshold (RULEBOOK.md §F). It
+> governs *how* implementation proceeds, not the business rules already
+> established elsewhere in this document — those are unchanged. It
+> supersedes any implication elsewhere that live credentials must be
+> obtained before coding starts.
 
 Proceed with **mock-first development**. Do not wait for Google Sheets
 service-account credentials or government-portal credentials before

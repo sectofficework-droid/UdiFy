@@ -109,7 +109,7 @@ never becomes the source of truth for student identity.
 | `attempt_number` | INTEGER NULL | positive, for retry events |
 | `authorized_by` | TEXT NULL | mandatory for consequential user authorization |
 | `performed_by` | TEXT NOT NULL | `AUTOMATION` or `MANUAL` |
-| `environment` | TEXT NOT NULL | `MOCK` or `LIVE` — mandatory, never inferred from context (decision 2026-09-25, master spec "CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION" §5). A `MOCK` event must never be capable of triggering a real spreadsheet write or a `LIVE_VERIFIED_SUCCESS` case status. |
+| `environment` | TEXT NOT NULL | Always `LIVE` — mandatory, never inferred from context (decision 2026-09-25, master spec "CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION" §5). **CHECK constraint narrowed from `('MOCK','LIVE')` to `('LIVE')` on 2026-09-28** when mock mode was removed from the app (TODO.md); historical rows written under the old constraint still say `MOCK` and remain valid/readable — this only affects future writes. |
 | `occurred_at` | TEXT NOT NULL | ISO-8601, timezone-aware |
 | `created_at` | TEXT NOT NULL | |
 | `metadata_json` | TEXT NULL | valid JSON |
@@ -156,8 +156,8 @@ PEN_INVALID_TRANSITION_ATTEMPT`.
   refs) used for the multi-attribute identity check (spec §E of Final
   Authority) before every consequential action.
 - **workflow_runs / jobs** — batch/run state, checkpoints, resumability
-  (spec §174, §219); also carries `environment = MOCK | LIVE` per run, for
-  the same reason as `pen_case_events.environment` above.
+  (spec §174, §219); also carries `environment` (always `LIVE`, see above)
+  per run, for the same reason as `pen_case_events.environment` above.
 - **portal_sessions** — session/login state per portal (spec §112, §173).
 - **retry_log** — attempt number, retryable vs non-idempotent classification
   (spec §G of Final Authority, §88).

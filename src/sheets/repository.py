@@ -1,15 +1,14 @@
-"""Google Sheets adapter interface + mock/real implementations.
+"""Google Sheets repository interface + real/in-memory implementations.
 
 Business logic (the workflow engine) depends on StudentSheetRepository,
-never on the Google Sheets SDK directly (mock-first decision, master
-spec "CREDENTIALS, MOCKING AND LIVE VERIFICATION DECISION" §2):
+never on the Google Sheets SDK directly (spec "CREDENTIALS, MOCKING AND
+LIVE VERIFICATION DECISION" §2):
 
     StudentSheetRepository
             |
-            +-- GoogleSheetsRepository   (real)
-            +-- MockSheetsRepository     (in-memory; the workflow engine
-                                           must run completely against
-                                           this one)
+            +-- GoogleSheetsRepository   (real — what the app always uses)
+            +-- MockSheetsRepository     (in-memory test double; tests only,
+                                           never used by the shipped app)
 """
 
 from __future__ import annotations
@@ -71,7 +70,8 @@ class _MockRow:
 
 
 class MockSheetsRepository:
-    """In-memory StudentSheetRepository for tests and mock-mode runs.
+    """In-memory StudentSheetRepository — a test double only, never used
+    by the shipped app (which always talks to the real Google Sheet).
 
     Every write is idempotent: writing the same value/color again is a
     no-op that doesn't count as a new "change" (see write_log), matching
@@ -208,9 +208,9 @@ class MockSheetsRepository:
         return row.values.get(column) == expected_value
 
     def list_students(self) -> list[Student]:
-        """MOCK counterpart of GoogleSheetsRepository.list_students().
+        """Test-double counterpart of GoogleSheetsRepository.list_students().
 
-        Returns the explicitly seeded students — the app's own demo dataset,
+        Returns the explicitly seeded students — a test's own fixture data,
         never anything resembling a real student record.
         """
         self._check_network()
@@ -387,9 +387,8 @@ class GoogleSheetsRepository:
     Live-tested for connectivity only so far (Live Verification Gate L1,
     TODO.md) — read/write methods below are real, not stubs, but have not
     yet been exercised against the real OGR/UDISE/PEN sheets (that's L2).
-    Never instantiate this in mock mode; the workflow engine takes
-    whichever repository it's given via dependency injection, it never
-    chooses.
+    The workflow engine takes whichever repository it's given via
+    dependency injection, it never chooses.
     """
 
     def __init__(self, service_account_file: str, spreadsheet_ids: dict[str, str]):
@@ -403,8 +402,9 @@ class GoogleSheetsRepository:
 
     def _client(self):
         if self._service is None:
-            # Imported lazily so mock-mode/tests never require google-api
-            # network setup or credentials to even import this module.
+            # Imported lazily so tests that never touch a real repository
+            # don't require google-api network setup or credentials just
+            # to import this module.
             from google.oauth2 import service_account
             from googleapiclient.discovery import build
 
@@ -749,11 +749,9 @@ class GoogleSheetsRepository:
     def list_students(self) -> list[Student]:
         """Every student on the OGR master register, in sheet order.
 
-        This is what LIVE mode uses to populate the Batch Queue — the OGR is
-        the school's own master list and the documented source of truth
-        (DB-DESIGN.md §A.1, spec §AF), so a live run must offer the real
-        students rather than the MOCK sample dataset. Read-only: it performs
-        no writes and touches no portal.
+        This is what populates the Batch Queue — the OGR is the school's own
+        master list and the documented source of truth (DB-DESIGN.md §A.1,
+        spec §AF). Read-only: it performs no writes and touches no portal.
 
         **Also resolves `udise_row` / `pen_row`**, which `entry_router` needs
         to determine the entry condition — without them every real student

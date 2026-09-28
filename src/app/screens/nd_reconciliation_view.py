@@ -44,7 +44,7 @@ class _NdReconciliationWorker(QThread):
                 # Never headless, in either environment.
                 browser = pw.chromium.launch(headless=False)
                 try:
-                    # Real vs mock decided by portal_factory from Settings.
+                    # Portal session opened via portal_factory (Settings).
                     # ND reconciliation only needs the National portal, so
                     # the Gujarat page it also opens is simply unused here.
                     session, _ = open_portal_session(self.settings, browser)
@@ -102,16 +102,23 @@ class NdReconciliationScreen(QWidget):
         self._populate()
 
     def _populate(self) -> None:
-        candidates = [e for e in self.ctx.demo_students if e.intended_condition is None]
+        # A real ND candidate is a student whose PEN is actually "ND" —
+        # not "any student whose routing condition is unknown" (that is
+        # every real student, since `intended_condition` is always None
+        # for a real one; filtering on it here made every real student an
+        # "ND candidate" and triggered a live Sheets read per row below,
+        # which blew the 60-reads/minute quota on the school's 401-student
+        # register and crashed the app on startup — found live, 2026-09-28).
+        # `student.pen` is already populated from the OGR sheet's own PEN
+        # column by `_student_from_ogr_row()` when the Batch Queue loads,
+        # so this costs zero extra API calls.
+        candidates = [e for e in self.ctx.demo_students if e.student.pen == "ND"]
         self.table.setRowCount(len(candidates))
         for row, entry in enumerate(candidates):
             student = entry.student
             self.table.setItem(row, 0, QTableWidgetItem(student.name))
             self.table.setItem(row, 1, QTableWidgetItem(student.class_name))
-            current_pen = "ND"
-            if student.pen_row is not None:
-                current_pen = self.ctx.sheets.get_row_values(student.pen_row).get("PEN", "ND")
-            self.table.setItem(row, 2, QTableWidgetItem(current_pen))
+            self.table.setItem(row, 2, QTableWidgetItem(student.pen or "ND"))
 
             btn = QPushButton("Check now")
             btn.setObjectName("Secondary")

@@ -1661,6 +1661,153 @@ is the L2 evidence, now reproducible by anyone.
 Excluded from the default `pytest` run (they are scripts, not tests, and
 they touch real systems).
 
+## Mock mode removed — LIVE-only from now on (2026-09-28)
+
+**User decision (MAJOR change, explicit):** clean the project down to only
+the live-working codebase, remove mock mode as a source of confusion, and
+develop going forward by direct live-DOM analysis (`tests/live/
+explore_portal.py`, `L1`-`L3` scripts) rather than synthetic HTML
+fixtures. Before acting, the tradeoff was explained and the user chose
+**full removal** explicitly (not the alternative of stripping mock from
+the app while keeping fixtures as a dev-test aid).
+
+**What changed:**
+
+- `Environment.MOCK` removed; `Environment` now has only `LIVE`.
+  `UDIFY_ENVIRONMENT` is no longer read from `.env` — the app is
+  unconditionally LIVE, and `require_live_credentials()` (renamed
+  semantics, same name) always applies, no early-return guard.
+- Deleted: `src/app/mock_fixtures.py`; all mock portal HTML
+  (`tests/fixtures/gujarat_udise/*.html`, `tests/fixtures/udise_plus/
+  new_pen_entry.html`, `tests/fixtures/generic/*.html`); every test file
+  that drove Playwright against those fixtures:
+  `test_gujarat_adapter.py`, `test_national_udise_adapter.py`,
+  `test_generic_portal_helpers.py`, `test_ui_change_resilience.py`,
+  `test_condition1_engine.py` .. `test_condition4_engine.py`,
+  `test_entry_router.py`, `test_new_entry_duplicate_guard.py`,
+  `test_duplicate_request_protection.py`,
+  `test_manual_review_resolution.py`, `test_session_timeout_scenarios.py`,
+  `test_resume_after_interruption.py`, `test_approval_batch.py`,
+  `test_release_request.py`, `test_nd_reconciliation.py`.
+- Kept and adapted: `test_live_portal_wiring.py` (dropped its
+  MOCK-branch test, kept the LIVE-branch regression guards — this is the
+  file that specifically proves the app opens the real portals, not a
+  mock page), `test_sheet_write_recovery.py`, `test_verify_after_save.py`
+  (never touched fixtures).
+- `portal_factory.py` simplified to the single LIVE code path (no
+  `MOCK_TIMEOUT_MS`/`MOCK_SCHOOL_CODE`/etc., no `is_live` field —
+  `PortalSession` only ever represents a live session now).
+- `app_context.py`: removed `seed_demo_students()` and the MOCK branch of
+  `AppContext.__init__` — `self.sheets` is always `GoogleSheetsRepository`,
+  `demo_students` is always `load_live_students()` against the real OGR.
+- `run_worker.py`, `dashboard.py`, `run_progress.py`,
+  `nd_reconciliation_view.py`, `approval_monitoring.py`, `settings_view.py`:
+  dropped the now-dead MOCK/LIVE conditionals and "MOCK sample data" UI
+  text.
+- `db/schema.py`'s 6 `environment` CHECK constraints narrowed to
+  `('LIVE')` — this only affects freshly created tables (SQLite
+  `CREATE TABLE IF NOT EXISTS` doesn't retroactively touch the real
+  `udify.sqlite3`, so historical `'MOCK'`-tagged audit rows are untouched
+  and still readable; the audit trail is not being edited or purged).
+- `engine/branches.py`, `sheet_recovery.py`, `verify_after_save.py`:
+  `environment: str = "MOCK"` defaults → `"LIVE"`.
+- `.env.example`: dropped the `UDIFY_ENVIRONMENT` line and MOCK framing.
+- `tests/live/_live_common.py` and `explore_portal.py`: removed the
+  now-unreachable `Environment.MOCK` guard (redundant with
+  `require_live_credentials()`, which already raises on incomplete config).
+- **Kept deliberately**: `MockSheetsRepository` in
+  `src/sheets/repository.py` stays as an in-memory `StudentSheetRepository`
+  test double, used only by unit tests (`test_workflow_runs.py`,
+  `test_resilience.py`, etc.) that need a fast fake for engine-logic
+  testing unrelated to portal DOM. It is never instantiated by the shipped
+  app anymore (no import of it remains outside `tests/`). This is a
+  standard repository-pattern test fake, judged distinct from the
+  app-level MOCK/LIVE toggle the user asked to remove — flagged here
+  rather than silently assumed, in case that judgment call should be
+  revisited.
+
+**Known gap, recorded per RULEBOOK.md §J14 (not silently dropped):** the
+deleted tests were the *only* automated, fast (~3s full suite) regression
+coverage for Condition1-4 engine state-machine logic, audit-trail/hash
+chaining through a real adapter, duplicate-request protection,
+session-timeout/resume recovery, approval-batch and release-request flows,
+ND-reconciliation, and adapter-level DOM interaction (Gujarat/National
+adapters, generic file-upload/dependent-dropdown helpers, UI-change
+resilience). None of that logic was proven wrong by this change — it
+still passed against the fixtures moments before deletion — but there is
+now no automated way to catch a regression in it short of a live run.
+Going forward, verification of portal-facing behavior is via
+`tests/live/explore_portal.py` (safe, non-submitting observation) and the
+`L1`-`L3` live scripts, per the user's stated direction to evolve via real
+DOM analysis rather than synthetic fixtures.
+
+**Verified:** `pytest -q` → **191 passed** (was 233 before this change).
+No new failures; the reduction is entirely accounted for by the deleted
+files above.
+
+## L2 Gujarat portal — first live read-only PASS (2026-09-28)
+
+**The biggest untested surface named in the Live Verification Gate is no
+longer untested.** Logged into the real Gujarat UDISE (Child Tracking
+System) portal for the first time ever in this project — confirmed by the
+portal itself echoing the real school back: `Welcome ::
+24224100067-SATYAM STARS INTERNATIONAL SCHOOL`. Landed on
+`StudentEntryPageStdWise.aspx` ("Manage Students – Standard Wise Entry").
+Captured: `diagnostics/l3_observation/20260928-014613_gujarat_post_login_check.json`.
+Nothing past this one screen has been explored yet — this is a login +
+one-screen read, not a full portal walk.
+
+**New tool: `tests/live/session_control.py`.** User asked for a
+persistent, code-driven session instead of `explore_portal.py`'s
+human-typed REPL: one process launches the browser and holds it open
+(CDP on `localhost:9345`); every action after that is a separate
+short-lived process that reconnects to the same already-open,
+already-logged-in page. A login now survives across as many follow-up
+actions as needed — no re-launch, no re-login. Reuses
+`explore_portal.py`'s safety layer (`INJECT_BLOCKER`,
+`is_blocked_method`) rather than a parallel copy of it.
+
+**Two real bugs found and fixed while getting this to actually work
+against the live portal (not caught by any fixture/test until now):**
+
+1. **Over-broad submit-blocker.** `INJECT_BLOCKER`'s secondary rule —
+   disarm any control with an explicit `type="submit"`/`type="image"`
+   attribute — disarmed the real portal's own "Go" and "LOG IN" buttons,
+   both legitimately `type="submit"` in the live HTML, neither a commit
+   action. The rule conflated "how HTML submits a form" with "commits a
+   government record." The test fixture never modeled a benign
+   `type="submit"` control, which is why this shipped unnoticed. Fixed by
+   dropping that rule — blocking now goes by button *text* alone
+   (save/submit/confirm/create/finalize/generate/release/etc.), which is
+   the actually-correct signal. Every existing MUST_BLOCK case in
+   `test_observe_safety.py` still matches on text alone, so nothing that
+   should be blocked became unblocked. Added `benignSubmit` to the
+   fixture + `MUST_CLICK` as a permanent regression guard for this exact
+   shape of bug. `pytest tests/live/test_observe_safety.py` → 67 passed
+   (was 66).
+2. **Connector cleanup was closing the live page.** `cmd_login()`'s
+   `finally: pw.stop()` — called after `connect_over_cdp()` — was closing
+   the actual browser tab on disconnect, even though the underlying
+   Chromium *process* stayed alive (`browser.contexts[0]` kept working;
+   `context.pages[0]` came back empty). Reproduced directly: right after
+   a real CAPTCHA pause, the operator's page vanished from under them.
+   Root cause: Playwright's graceful shutdown sends its own
+   disconnect/cleanup protocol messages, which reached the shared
+   browser. Fixed by ending every connector command with `os._exit()`
+   instead — flush output, then terminate at the OS level, skipping
+   Playwright's shutdown protocol entirely. Re-verified live: `login` →
+   CAPTCHA pause → `url` immediately after → page still there (this
+   exact sequence failed with `IndexError: list index out of range`
+   before the fix).
+
+**Verified:** `pytest -q` → **192 passed** (191 + the new `benignSubmit`
+case).
+
+**Still open, narrower than before:** the National UDISE+ New-PEN flow
+and the Gujarat UDISE New Entry form's actual 5 profile tabs remain
+unread against the real DOM — today's progress is login + one screen for
+Gujarat, not a full walk of either portal.
+
 ## Next trigger
 
 **Development is being finalised first; packaging/exe is the last step,

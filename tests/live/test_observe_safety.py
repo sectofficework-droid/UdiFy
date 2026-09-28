@@ -33,7 +33,7 @@ from explore_portal import BLOCK_TEXT, INJECT_BLOCKER, is_blocked_method  # noqa
 FIXTURE = Path(__file__).with_name("fixtures") / "blocker_test.html"
 
 MUST_BLOCK = ["save", "submit", "confirm", "add", "create", "gen", "finalize", "lateSave"]
-MUST_CLICK = ["nav", "go", "signin"]
+MUST_CLICK = ["nav", "go", "signin", "benignSubmit"]
 
 
 @pytest.fixture(scope="module")

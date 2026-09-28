@@ -32,7 +32,6 @@ from PySide6.QtWidgets import (
 from src.app.app_context import AppContext, DemoStudentEntry
 from src.app.run_worker import RunWorker
 from src.app.widgets import screen_header, status_chip
-from src.config.settings import Environment
 from src.db.events import get_case_history
 
 
@@ -86,17 +85,14 @@ class RunProgressScreen(QWidget):
             self.start_btn.setEnabled(False)
             return
         # Every loaded student is runnable. A real student's condition is
-        # derived at run time by entry_router from actual sheet state, and a
-        # MOCK demo case is always runnable too — gating the button on the
-        # fixture-only `intended_condition` would wrongly disable every real
-        # student (they all carry None, since it is a fixture property).
+        # derived at run time by entry_router from actual sheet state —
+        # gating the button on `intended_condition` would wrongly disable
+        # every real student (they all carry None until routed).
         self.start_btn.setEnabled(True)
-        live = self.ctx.settings.environment is Environment.LIVE
-        mode = "LIVE (real portals + real registers)" if live else "MOCK (local fixtures)"
         self._append_log(
             f"Loaded {entry.student.name} — {entry.note}"
             + ("" if entry.intended_condition else "")
-            + f"\nMode: {mode}"
+            + "\nMode: LIVE (real portals + real registers)"
         )
         self._refresh_stepper()
 
@@ -106,10 +102,9 @@ class RunProgressScreen(QWidget):
     def _start(self) -> None:
         if self.current_entry is None or self.worker is not None:
             return
-        if self.ctx.settings.environment is Environment.LIVE:
-            if not self._confirm_live_run(self.current_entry):
-                self._append_log("Live run cancelled by operator — nothing was done.")
-                return
+        if not self._confirm_live_run(self.current_entry):
+            self._append_log("Live run cancelled by operator — nothing was done.")
+            return
         self.start_btn.setEnabled(False)
         self.banner.setVisible(False)
         self._append_log("— starting run —")

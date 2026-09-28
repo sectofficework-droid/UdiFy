@@ -60,7 +60,7 @@ def write_and_verify(sheets: StudentSheetRepository, row_ref, column: str, value
 def run_udise_new_branch(
     gujarat: GujaratUDISEPortalAdapter, sheets: StudentSheetRepository,
     conn: sqlite3.Connection, student: Student, *, run_id: str,
-    environment: str = "MOCK",
+    environment: str = "LIVE",
 ) -> str:
     """New UDISE Entry (spec §13-32, §163, §W). Returns the generated UID.
 
@@ -245,7 +245,7 @@ def run_udise_import_branch(
 def run_pen_new_branch(
     national: NationalUDISEPortalAdapter, sheets: StudentSheetRepository,
     conn: sqlite3.Connection, student: Student, *, run_id: str, section: str = "A",
-    environment: str = "MOCK",
+    environment: str = "LIVE",
 ) -> str:
     """New PEN Entry (spec §34-53, §164, §Y). Returns "ND" on success —
     spec §54/§81/§128.3: ND + GREEN is a valid completed state.

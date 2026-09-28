@@ -59,7 +59,7 @@ if str(_ROOT) not in sys.path:
 
 from playwright.sync_api import sync_playwright  # noqa: E402
 
-from src.config.settings import Environment, load_settings  # noqa: E402
+from src.config.settings import load_settings  # noqa: E402
 from src.portals.udise_gujarat.adapter import GujaratUDISEPortalAdapter  # noqa: E402
 from src.portals.udise_plus.adapter import NationalUDISEPortalAdapter  # noqa: E402
 
@@ -150,19 +150,19 @@ INJECT_BLOCKER = """
   const scan = () => {
     document.querySelectorAll(SEL).forEach(el => {
       const t = label(el);
-      // Text match is the primary signal.
-      if (TEXT.test(t)) { disarm(el); return; }
-      // Secondary signal: an explicitly-typed submit control. Note this
-      // must check the ATTRIBUTE, not the property. A <button> with no
-      // type attribute reports .type === 'submit' by HTML default, so
-      // using the property here disarmed EVERY button on the page -
-      // including "Students Module", "Go" and "Sign In" - which broke
-      // navigation completely. Real bugs, both found by this test file.
-      const attr = (el.getAttribute('type') || '').toLowerCase();
-      if ((el.tagName === 'INPUT' || el.tagName === 'BUTTON')
-          && (attr === 'submit' || attr === 'image')) {
-        disarm(el);
-      }
+      // Text is the ONLY signal. A second signal — "has an explicitly
+      // typed submit/image attribute" — was tried and removed
+      // (2026-09-28): it disarmed the real Gujarat portal's "Go" search
+      // button and its "LOG IN" button, both genuinely
+      // <button type="submit">, which broke navigation AND login
+      // entirely. HTML's type="submit" describes how a browser submits a
+      // form, not whether the action commits a government record — a
+      // login or a search is a submit in HTML's sense but not in ours.
+      // The test fixture never modeled a benign type="submit" control,
+      // which is why this shipped unnoticed until the real portal caught
+      // it. Text (what the control actually says it does) is the correct
+      // signal on its own.
+      if (TEXT.test(t)) { disarm(el); }
     });
   };
   const mo = new MutationObserver(() => scan());
@@ -308,12 +308,7 @@ def main() -> int:
     parser.add_argument("--portal", choices=("national", "gujarat"), required=True)
     args = parser.parse_args()
 
-    settings = load_settings()
-    if settings.environment is not Environment.LIVE:
-        raise SystemExit(
-            "UDIFY_ENVIRONMENT is MOCK. This explorer drives the REAL portal; "
-            "set UDIY_ENVIRONMENT=LIVE in .env first."
-        )
+    settings = load_settings()  # raises if any required credential is missing
 
     ex = Explorer(args.portal)
     print("=" * 74)

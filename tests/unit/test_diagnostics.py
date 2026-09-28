@@ -94,7 +94,7 @@ def test_capture_failure_persists_and_returns_diagnostic_id(conn, tmp_path):
     diagnostic_id = capture_failure(
         conn,
         summary="Aadhaar consent dialog detected",
-        environment="MOCK",
+        environment="LIVE",
         severity="WARNING",
         retry_allowed=False,
         workflow="PEN_NEW_ENTRY",
@@ -109,7 +109,7 @@ def test_capture_failure_persists_and_returns_diagnostic_id(conn, tmp_path):
     assert row is not None
     assert row["summary"] == "Aadhaar consent dialog detected"
     assert row["retry_allowed"] == 0
-    assert row["environment"] == "MOCK"
+    assert row["environment"] == "LIVE"
 
     recent = list_recent_diagnostics(conn)
     assert any(r["diagnostic_id"] == diagnostic_id for r in recent)

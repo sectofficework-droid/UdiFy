@@ -89,9 +89,6 @@ class MainWindow(QMainWindow):
         title = QLabel("UdiFy")
         title.setObjectName("BrandTitle")
         layout.addWidget(title)
-        subtitle = QLabel(f"{self.ctx.settings.environment.value} mode")
-        subtitle.setObjectName("BrandSubtitle")
-        layout.addWidget(subtitle)
 
         self.nav_group = QButtonGroup(sidebar)
         self.nav_group.setExclusive(True)

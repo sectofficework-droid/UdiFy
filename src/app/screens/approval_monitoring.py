@@ -51,7 +51,7 @@ class _BatchCheckWorker(QThread):
                 # Never headless, in either environment.
                 browser = pw.chromium.launch(headless=False)
                 try:
-                    # Real vs mock decided by portal_factory from Settings,
+                    # Portal session opened via portal_factory (Settings),
                     # not hardcoded here (see run_worker.py's docstring for
                     # why that distinction matters).
                     session, _ = open_portal_session(self.settings, browser)

@@ -84,7 +84,7 @@ def recover_sheet_write(
     cell_values: dict[str, str],
     row_color: str | None = None,
     run_id: str = "",
-    environment: str = "MOCK",
+    environment: str = "LIVE",
     workflow: str = "NEW_UDISE",
     max_attempts: int = 3,
 ) -> None:

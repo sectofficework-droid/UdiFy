@@ -17,7 +17,14 @@ def test_save_button_writes_env_and_masks_passwords_on_reload(tmp_path, monkeypa
     monkeypatch.setattr("src.config.settings_writer.PROJECT_ROOT", tmp_path)
     monkeypatch.setenv("UDIFY_SQLITE_PATH", str(tmp_path / "settings_test.sqlite3"))
     monkeypatch.setenv("UDIFY_DIAGNOSTICS_DIR", str(tmp_path / "diagnostics"))
-    monkeypatch.setenv("UDIFY_ENVIRONMENT", "MOCK")
+    monkeypatch.setenv("GOOGLE_SERVICE_ACCOUNT_FILE", str(tmp_path / "fake-service-account.json"))
+    monkeypatch.setenv("GUJARAT_UDISE_LOGIN_URL", "https://example.invalid/gujarat")
+    monkeypatch.setenv("GUJARAT_UDISE_SCHOOL_CODE", "school-code")
+    monkeypatch.setenv("GUJARAT_UDISE_USERNAME", "user")
+    monkeypatch.setenv("GUJARAT_UDISE_PASSWORD", "pw")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_LOGIN_URL", "https://example.invalid/national")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_USERNAME", "user")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_PASSWORD", "pw")
 
     from PySide6.QtWidgets import QApplication
 
@@ -66,7 +73,14 @@ def test_leaving_password_blank_on_resave_keeps_the_previous_value(tmp_path, mon
     monkeypatch.setattr("src.config.settings_writer.PROJECT_ROOT", tmp_path)
     monkeypatch.setenv("UDIFY_SQLITE_PATH", str(tmp_path / "settings_test2.sqlite3"))
     monkeypatch.setenv("UDIFY_DIAGNOSTICS_DIR", str(tmp_path / "diagnostics2"))
-    monkeypatch.setenv("UDIFY_ENVIRONMENT", "MOCK")
+    monkeypatch.setenv("GOOGLE_SERVICE_ACCOUNT_FILE", str(tmp_path / "fake-service-account.json"))
+    monkeypatch.setenv("GUJARAT_UDISE_LOGIN_URL", "https://example.invalid/gujarat")
+    monkeypatch.setenv("GUJARAT_UDISE_SCHOOL_CODE", "school-code")
+    monkeypatch.setenv("GUJARAT_UDISE_USERNAME", "user")
+    monkeypatch.setenv("GUJARAT_UDISE_PASSWORD", "pw")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_LOGIN_URL", "https://example.invalid/national")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_USERNAME", "user")
+    monkeypatch.setenv("NATIONAL_UDISE_PLUS_PASSWORD", "pw")
 
     from PySide6.QtWidgets import QApplication
 

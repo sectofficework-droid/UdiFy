@@ -95,6 +95,39 @@ def build_stylesheet(p: Palette) -> str:
        so the generic focus rect is redundant, not additive. */
     *:focus {{ outline: none; }}
 
+    /* QScrollArea's viewport is an anonymous QWidget that does NOT
+       automatically pick up the app-wide QWidget{{background-color}}
+       rule above — it paints its own default background instead, which
+       shows as a mismatched white/grey box behind the Settings form in
+       dark mode specifically (the light palette happened to hide this
+       by coincidence, since paper/surface are both near-white there).
+       Targeting the scroll area itself and its content widget (the
+       standard QSS pattern for this) fixes it in both themes. */
+    QScrollArea {{ background: transparent; border: none; }}
+    QScrollArea > QWidget > QWidget {{ background: transparent; }}
+
+    /* QSplitter's handle (diagnostics_view.py) renders as the OS's
+       unstyled 3-dot grip by default — a jarring native-grey element
+       against this theme in either mode. */
+    QSplitter::handle {{
+        background-color: {p.border};
+    }}
+    QSplitter::handle:horizontal {{ width: 2px; }}
+    QSplitter::handle:vertical {{ height: 2px; }}
+
+    /* QMessageBox (the "Confirm LIVE run" dialog, run_progress.py) is
+       otherwise left to the OS's native dialog chrome, which looks
+       inconsistent against this theme — white-on-dark or vice versa
+       depending on the system theme, independent of which palette the
+       app itself is using. */
+    QMessageBox {{
+        background-color: {p.surface};
+    }}
+    QMessageBox QLabel {{
+        color: {p.ink};
+        background: transparent;
+    }}
+
     QScrollBar:vertical {{
         background: transparent;
         width: 12px;
@@ -154,12 +187,7 @@ def build_stylesheet(p: Palette) -> str:
         font-family: "Source Serif 4", Georgia, serif;
         font-size: 15pt;
         font-weight: 600;
-        padding: 18px 16px 4px 16px;
-    }}
-    #Sidebar QLabel#BrandSubtitle {{
-        color: #C7D2E0;
-        font-size: 8.5pt;
-        padding: 0px 16px 14px 16px;
+        padding: 18px 16px 14px 16px;
     }}
     #Sidebar QPushButton {{
         background: transparent;
